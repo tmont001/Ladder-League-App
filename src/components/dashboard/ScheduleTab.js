@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
+import { getParticipantName } from '../../utils/participants';
 import ScoreEntryModal from './ScoreEntryModal';
 import ChallengeModal from './ChallengeModal';
-
-function getParticipantName(p, isDoubles) {
-  if (!p) return 'BYE';
-  return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
-}
 
 function StatusBadge({ status, type }) {
   const map = {

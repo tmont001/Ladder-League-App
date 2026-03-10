@@ -1,14 +1,7 @@
 import Portal from '../shared/Portal';
 import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
-
-function generateId() {
-  return Math.random().toString(36).substr(2, 9);
-}
-
-function getParticipantName(p, isDoubles) {
-  return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
-}
+import { generateId, getParticipantName } from '../../utils/participants';
 
 function ChallengeModal({ onClose }) {
   const {

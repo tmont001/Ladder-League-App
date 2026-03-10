@@ -5,11 +5,8 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import {
-  deriveStandings,
-  isRoundComplete,
-  generateLeague,
-} from '../utils/matchGenerator';
+import { generateLeague } from '../utils/matchGenerator';
+import { deriveStandings, isRoundComplete } from '../utils/standingsEngine';
 
 const LeagueContext = createContext();
 

@@ -1,9 +1,6 @@
 import React from 'react';
 import { useLeague } from '../../context/LeagueContext';
-
-function getParticipantName(p, isDoubles) {
-  return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
-}
+import { getParticipantName } from '../../utils/participants';
 
 function getParticipantRating(p, isDoubles) {
   if (isDoubles) {
