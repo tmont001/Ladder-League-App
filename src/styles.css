@@ -2510,3 +2510,72 @@ input[type='range']::-webkit-slider-thumb {
   color: var(--gold);
   margin-left: 1px;
 }
+
+/* ══════════════════════════════════════════════════════════
+   UTR PROFILE URL
+   ══════════════════════════════════════════════════════════ */
+
+.utr-url-row {
+  margin-bottom: 8px;
+}
+
+.utr-url-input {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1.5px solid var(--border-faint);
+  border-radius: 2px;
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.78rem;
+  padding: 0.45rem 0.75rem;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+.utr-url-input::placeholder {
+  color: var(--muted);
+}
+.utr-url-input:focus {
+  outline: none;
+  border-color: var(--border-active);
+}
+
+.player-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.utr-profile-link {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--lime);
+  text-decoration: none;
+  background: var(--glow);
+  border: 1px solid var(--border-active);
+  border-radius: 2px;
+  padding: 1px 5px;
+  line-height: 1.6;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+.utr-profile-link:hover {
+  opacity: 0.75;
+}
+
+/* ══════════════════════════════════════════════════════════
+   MODAL THEMING FIX
+   Portal container is outside .theme-dark/.theme-light,
+   so we ensure the modal itself always inherits correctly.
+   ══════════════════════════════════════════════════════════ */
+
+.theme-dark .modal-overlay,
+.theme-light .modal-overlay {
+  /* already handled by Portal applying the class to its container */
+}
+
+/* Ensure modals rendered in Portal containers get the app font */
+.theme-dark,
+.theme-light {
+  font-family: 'DM Sans', sans-serif;
+}
