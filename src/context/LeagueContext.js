@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
   deriveStandings,
   isRoundComplete,
@@ -14,8 +20,11 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   const [matches, setMatches] = useState(initialLeagueData.matches);
   const [participants] = useState(initialLeagueData.seededParticipants);
 
-  // Derived standings — recomputed whenever matches change
-  const standings = deriveStandings(participants, matches, isDoubles);
+  // Derived standings — recomputed when participants/matches/isDoubles change
+  const standings = useMemo(
+    () => deriveStandings(participants, matches, isDoubles),
+    [participants, matches, isDoubles],
+  );
 
   // ── Submit a match result ────────────────────────────────
   const submitResult = useCallback((matchId, result) => {
@@ -66,8 +75,8 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   }, []);
 
   // ── Advance to next round (manual trigger) ───────────────
-  const currentRoundNumber =
-    rounds.findIndex((r) => !r.isComplete) + 1 || rounds.length;
+  const idx = rounds.findIndex((r) => !r.isComplete);
+  const currentRoundNumber = idx === -1 ? rounds.length : idx + 1;
 
   return (
     <LeagueContext.Provider

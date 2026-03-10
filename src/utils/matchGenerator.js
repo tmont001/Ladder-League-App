@@ -4,7 +4,7 @@
 // Seeding is based on USTA rating descending, then alphabetical.
 
 function generateId() {
-  return Math.random().toString(36).substr(2, 9);
+  return Math.random().toString(36).slice(2, 11);
 }
 
 /**
@@ -176,7 +176,7 @@ export function deriveStandings(participants, matches, isDoubles) {
   return Object.values(stats).sort((a, b) => {
     if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
     if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
-    return b.ustaRating - a.ustaRating;
+    return Number(b.ustaRating) - Number(a.ustaRating);
   });
 }
 
