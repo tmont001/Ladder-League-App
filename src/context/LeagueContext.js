@@ -21,7 +21,7 @@ export function LeagueProvider({
 
   const [rounds, setRounds] = useState(initialLeagueData.rounds || []);
   const [matches, setMatches] = useState(initialLeagueData.matches || []);
-  const [participants] = useState(initialLeagueData.seededParticipants || []);
+  const [participants, setParticipants] = useState(initialLeagueData.seededParticipants || []);
   const [notifications, setNotifications] = useState([]);
   const [outboxEmails, setOutboxEmails] = useState([]);
 
@@ -98,6 +98,38 @@ export function LeagueProvider({
       }),
     );
   }, []);
+
+  // update ranking_score based on match result
+  useEffect(() => {
+    // whenever matches change, optionally update participant ranking_score
+    // This is a lightweight example: for newly completed matches, apply a fixed delta to winner/loser
+    // Find completed matches that haven't been applied yet by checking a flag in result._applied
+    const toApply = matches.filter((m) => m.status === 'completed' && m.result && !m.result._applied);
+    if (!toApply.length) return;
+
+    toApply.forEach((m) => {
+      const { winnerId, p1Sets = 0, p2Sets = 0 } = m.result;
+      const loserId = winnerId === m.p1?.id ? m.p2?.id : m.p1?.id;
+      const delta = Math.max(1, Math.abs(p1Sets - p2Sets)) * 10; // simple points: 10 * set difference
+
+      setParticipants((prev) =>
+        prev.map((p) => {
+          if (p.id === winnerId) {
+            const current = parseFloat(p.ranking_score || 0);
+            return { ...p, ranking_score: Number((current + delta).toFixed(4)) };
+          }
+          if (p.id === loserId) {
+            const current = parseFloat(p.ranking_score || 0);
+            return { ...p, ranking_score: Number((current - Math.max(1, delta / 2)).toFixed(4)) };
+          }
+          return p;
+        }),
+      );
+
+      // mark match result as applied to avoid double-applying
+      setMatches((prev) => prev.map((mm) => (mm.id === m.id ? { ...mm, result: { ...mm.result, _applied: true } } : mm)));
+    });
+  }, [matches, setParticipants, setMatches]);
 
   // ── Mark a match as forfeit or skipped ──────────────────
   const resolveMatch = useCallback((matchId, status) => {

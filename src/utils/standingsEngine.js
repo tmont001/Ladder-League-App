@@ -51,6 +51,10 @@ export function deriveStandings(participants, matches, isDoubles) {
   return Object.values(stats).sort((a, b) => {
     if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
     if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
+    // prefer ranking_score (new numeric ladder score) if available, then fall back to ustaRating
+    const aRankScore = Number(a.participant.ranking_score || 0);
+    const bRankScore = Number(b.participant.ranking_score || 0);
+    if (bRankScore !== aRankScore) return bRankScore - aRankScore;
     return Number(b.ustaRating) - Number(a.ustaRating);
   });
 }

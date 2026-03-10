@@ -54,7 +54,10 @@ describe('Integration flows', () => {
     // debug snapshot of DOM after confirm (trimmed)
     console.log('DOM after confirm length:', document.body.innerHTML.length);
 
-    // onCreated should cause the Schedule to show a challenge badge
+    // Ensure Schedule tab is visible, then check for a challenge badge
+    const scheduleTabBtn = await screen.findByText('Schedule');
+    fireEvent.click(scheduleTabBtn);
+
     await waitFor(
       () => {
         const badge = document.querySelector('.status-badge');
