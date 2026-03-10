@@ -1,3 +1,4 @@
+import Portal from '../context/Portal';
 import React, { useState, useMemo } from 'react';
 import ThemeToggle from './shared/ThemeToggle';
 import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
@@ -5,20 +6,8 @@ import { generateLeague } from '../utils/matchGenerator';
 
 // ─── Constants ────────────────────────────────────────────
 
-const USTA_RATINGS = [
-  '2.0',
-  '2.5',
-  '3.0',
-  '3.5',
-  '4.0',
-  '4.5',
-  '5.0',
-  '5.5',
-  '6.0',
-  '6.5',
-  '7.0',
-];
-const UTR_RATINGS = Array.from({ length: 33 }, (_, i) => (i * 0.5).toFixed(1)); // 0.0–16.0
+const USTA_RATINGS = ['2.0','2.5','3.0','3.5','4.0','4.5','5.0','5.5','6.0','6.5','7.0'];
+const UTR_RATINGS  = Array.from({ length: 33 }, (_, i) => (i * 0.5).toFixed(1)); // 0.0–16.0
 
 const FORMAT_LABELS = {
   best_of_1: 'Best of 1',
@@ -31,20 +20,15 @@ function generateId() {
 }
 
 function getSportIcon(sport, size = 16) {
-  return sport === 'tennis' ? (
-    <TennisRacquetIcon size={size} color="currentColor" />
-  ) : (
-    <PickleballPaddleIcon size={size} color="currentColor" />
-  );
+  return sport === 'tennis'
+    ? <TennisRacquetIcon size={size} color="currentColor" />
+    : <PickleballPaddleIcon size={size} color="currentColor" />;
 }
 
 // ─── Bulk paste parser ────────────────────────────────────
 // Accepts: "Name" (no rating) or "Name 3.5" or "Name, 3.5" or "Name - 4.0"
 function parseBulkText(text) {
-  const lines = text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   const parsed = [];
   const errors = [];
 
@@ -52,22 +36,12 @@ function parseBulkText(text) {
     // Try to match name + optional rating
     const withRating = line.match(/^(.+?)[\s,\-–]+(\d+\.?\d*)$/);
     if (withRating) {
-      const name = withRating[1].trim();
+      const name   = withRating[1].trim();
       const rating = withRating[2];
-      parsed.push({
-        id: generateId(),
-        name,
-        rating: rating || null,
-        ratingType: null,
-      });
+      parsed.push({ id: generateId(), name, rating: rating || null, ratingType: null });
     } else if (line.length > 0) {
       // Name only — no rating
-      parsed.push({
-        id: generateId(),
-        name: line,
-        rating: null,
-        ratingType: null,
-      });
+      parsed.push({ id: generateId(), name: line, rating: null, ratingType: null });
     } else {
       errors.push(`Line ${i + 1}: couldn't parse "${line}"`);
     }
@@ -80,30 +54,25 @@ function parseBulkText(text) {
 
 function ConfirmLaunchModal({ playerCount, onConfirm, onCancel }) {
   return (
+    <Portal>
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">Ready to Launch?</div>
-          <button className="modal-close" onClick={onCancel}>
-            ✕
-          </button>
+          <button className="modal-close" onClick={onCancel}>✕</button>
         </div>
         <div className="modal-body">
           <div className="confirm-icon">🚀</div>
           <p className="confirm-text">
-            Once the league is launched,{' '}
-            <strong>player names and ratings cannot be changed.</strong>
+            Once the league is launched, <strong>player names and ratings cannot be changed.</strong>
           </p>
           <p className="confirm-subtext">
-            You're about to start a league with <strong>{playerCount}</strong>{' '}
-            participant{playerCount !== 1 ? 's' : ''}. Make sure everyone's info
-            is correct before continuing.
+            You're about to start a league with <strong>{playerCount}</strong> participant{playerCount !== 1 ? 's' : ''}.
+            Make sure everyone's info is correct before continuing.
           </p>
         </div>
         <div className="modal-footer">
-          <button className="btn-back" onClick={onCancel}>
-            Go Back
-          </button>
+          <button className="btn-back" onClick={onCancel}>Go Back</button>
           <button className="btn-next btn-launch" onClick={onConfirm}>
             Confirm &amp; Launch
           </button>
@@ -125,51 +94,24 @@ function PlayerRow({ player, index, onRemove, onEdit }) {
       <div className="player-rank">{index + 1}</div>
       <div className="player-info">
         <span className="player-name">{player.name}</span>
-        {ratingLabel ? (
-          <span className="player-rating-badge">{ratingLabel}</span>
-        ) : (
-          <span className="player-rating-badge player-rating-none">
-            No rating
-          </span>
-        )}
+        {ratingLabel
+          ? <span className="player-rating-badge">{ratingLabel}</span>
+          : <span className="player-rating-badge player-rating-none">No rating</span>
+        }
       </div>
       <div className="player-actions">
-        <button
-          className="btn-icon"
-          onClick={() => onEdit(player)}
-          aria-label="Edit"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          >
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        <button className="btn-icon" onClick={() => onEdit(player)} aria-label="Edit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
-        <button
-          className="btn-icon btn-icon-danger"
-          onClick={() => onRemove(player.id)}
-          aria-label="Remove"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6M14 11v6" />
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+        <button className="btn-icon btn-icon-danger" onClick={() => onRemove(player.id)} aria-label="Remove">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
         </button>
       </div>
@@ -179,46 +121,26 @@ function PlayerRow({ player, index, onRemove, onEdit }) {
 
 function TeamRow({ team, index, onRemove }) {
   const avgRating = team.players.every((p) => p.rating)
-    ? (
-        team.players.reduce((s, p) => s + parseFloat(p.rating), 0) /
-        team.players.length
-      ).toFixed(1)
+    ? (team.players.reduce((s, p) => s + parseFloat(p.rating), 0) / team.players.length).toFixed(1)
     : null;
 
   return (
     <div className="player-row">
       <div className="player-rank">{index + 1}</div>
       <div className="player-info">
-        <span className="player-name">
-          {team.players.map((p) => p.name).join(' & ')}
-        </span>
-        {avgRating ? (
-          <span className="player-rating-badge">{avgRating} avg</span>
-        ) : (
-          <span className="player-rating-badge player-rating-none">
-            No rating
-          </span>
-        )}
+        <span className="player-name">{team.players.map((p) => p.name).join(' & ')}</span>
+        {avgRating
+          ? <span className="player-rating-badge">{avgRating} avg</span>
+          : <span className="player-rating-badge player-rating-none">No rating</span>
+        }
       </div>
       <div className="player-actions">
-        <button
-          className="btn-icon btn-icon-danger"
-          onClick={() => onRemove(team.id)}
-          aria-label="Remove"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6M14 11v6" />
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+        <button className="btn-icon btn-icon-danger" onClick={() => onRemove(team.id)} aria-label="Remove">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
         </button>
       </div>
@@ -238,6 +160,7 @@ function SettingsSummary({ settings, overrides, onOverride }) {
         <span className="summary-edit-hint">editable</span>
       </div>
       <div className="summary-rows">
+
         <div className="summary-row">
           <span className="summary-row-label">Sport</span>
           <span className="summary-row-value summary-sport-value">
@@ -249,55 +172,31 @@ function SettingsSummary({ settings, overrides, onOverride }) {
         <div className="summary-row">
           <span className="summary-row-label">Format</span>
           <span className="summary-row-value">
-            {isDoubles ? 'Doubles' : 'Singles'} ·{' '}
-            {FORMAT_LABELS[settings.format]}
+            {isDoubles ? 'Doubles' : 'Singles'} · {FORMAT_LABELS[settings.format]}
           </span>
         </div>
 
         <div className="summary-row summary-row-edit">
           <span className="summary-row-label">Rounds</span>
           <div className="summary-inline-edit">
-            <button
-              className="edit-stepper"
-              onClick={() =>
-                onOverride(
-                  'rounds',
-                  Math.max(1, (overrides.rounds ?? settings.rounds) - 1),
-                )
-              }
-            >
-              −
-            </button>
-            <span className="edit-stepper-val">
-              {overrides.rounds ?? settings.rounds}
-            </span>
-            <button
-              className="edit-stepper"
-              onClick={() =>
-                onOverride(
-                  'rounds',
-                  Math.min(16, (overrides.rounds ?? settings.rounds) + 1),
-                )
-              }
-            >
-              +
-            </button>
+            <button className="edit-stepper"
+              onClick={() => onOverride('rounds', Math.max(1, (overrides.rounds ?? settings.rounds) - 1))}>−</button>
+            <span className="edit-stepper-val">{overrides.rounds ?? settings.rounds}</span>
+            <button className="edit-stepper"
+              onClick={() => onOverride('rounds', Math.min(16, (overrides.rounds ?? settings.rounds) + 1))}>+</button>
           </div>
         </div>
 
         <div className="summary-row">
           <span className="summary-row-label">Challenge</span>
-          <span className="summary-row-value">
-            ±{settings.challengeSpots} spots
-          </span>
+          <span className="summary-row-value">±{settings.challengeSpots} spots</span>
         </div>
 
         <div className="summary-row">
           <span className="summary-row-label">Advance</span>
-          <span className="summary-row-value">
-            {settings.autoAdvance ? 'Auto' : 'Manual'}
-          </span>
+          <span className="summary-row-value">{settings.autoAdvance ? 'Auto' : 'Manual'}</span>
         </div>
+
       </div>
     </div>
   );
@@ -340,9 +239,7 @@ function Round1Preview({ rounds, isDoubles }) {
         ))}
       </div>
       {!expanded && matches.length > LIMIT && (
-        <button className="btn-show-more" onClick={() => setExpanded(true)}>
-          + {matches.length - LIMIT} more
-        </button>
+        <button className="btn-show-more" onClick={() => setExpanded(true)}>+ {matches.length - LIMIT} more</button>
       )}
     </div>
   );
@@ -355,95 +252,73 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
 
   // ── Player state ─────────────────────────────────────────
   const [players, setPlayers] = useState(initialData?.players || []);
-  const [teams, setTeams] = useState(initialData?.teams || []);
+  const [teams,   setTeams]   = useState(initialData?.teams   || []);
 
   // Add/edit form
-  const [newName, setNewName] = useState('');
+  const [newName,   setNewName]   = useState('');
   const [ratingType, setRatingType] = useState('USTA'); // 'USTA' | 'UTR' | 'none'
   const [newRating, setNewRating] = useState('3.5');
   const [editingId, setEditingId] = useState(null);
 
   // Bulk paste
-  const [entryMode, setEntryMode] = useState('individual');
-  const [bulkText, setBulkText] = useState('');
-  const [bulkErrors, setBulkErrors] = useState([]);
-  const [bulkSuccess, setBulkSuccess] = useState(0);
+  const [entryMode,    setEntryMode]    = useState('individual');
+  const [bulkText,     setBulkText]     = useState('');
+  const [bulkErrors,   setBulkErrors]   = useState([]);
+  const [bulkSuccess,  setBulkSuccess]  = useState(0);
 
   // Doubles pairing
   const [pairSelect, setPairSelect] = useState({ p1: '', p2: '' });
-  const [pairError, setPairError] = useState('');
+  const [pairError,  setPairError]  = useState('');
 
   // Settings overrides (rounds)
   const [overrides, setOverrides] = useState({ rounds: settings?.rounds });
-  const setOverride = (key, val) =>
-    setOverrides((prev) => ({ ...prev, [key]: val }));
+  const setOverride = (key, val) => setOverrides((prev) => ({ ...prev, [key]: val }));
 
   // Confirmation modal
   const [showConfirm, setShowConfirm] = useState(false);
-  const [launching, setLaunching] = useState(false);
+  const [launching,   setLaunching]   = useState(false);
 
   // ── Computed ─────────────────────────────────────────────
   const effectiveSettings = useMemo(
     () => ({ ...settings, rounds: overrides.rounds ?? settings.rounds }),
-    [settings, overrides.rounds],
+    [settings, overrides.rounds]
   );
 
-  const effectivePlayerData = useMemo(
-    () => ({ players, teams }),
-    [players, teams],
-  );
+  const effectivePlayerData = useMemo(() => ({ players, teams }), [players, teams]);
 
   const participantCount = isDoubles ? teams.length : players.length;
   const canLaunch = participantCount >= 2;
 
   const preview = useMemo(
-    () =>
-      canLaunch ? generateLeague(effectiveSettings, effectivePlayerData) : null,
+    () => canLaunch ? generateLeague(effectiveSettings, effectivePlayerData) : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [effectiveSettings.rounds, players.length, teams.length],
+    [effectiveSettings.rounds, players.length, teams.length]
   );
 
   // ── Rating options based on type ─────────────────────────
-  const ratingOptions =
-    ratingType === 'USTA'
-      ? USTA_RATINGS
-      : ratingType === 'UTR'
-        ? UTR_RATINGS
-        : [];
+  const ratingOptions = ratingType === 'USTA' ? USTA_RATINGS : ratingType === 'UTR' ? UTR_RATINGS : [];
 
   // ── Player CRUD ──────────────────────────────────────────
-  const buildRating = () => (ratingType === 'none' ? null : newRating);
+  const buildRating = () => ratingType === 'none' ? null : newRating;
 
   const addOrSavePlayer = () => {
     if (!newName.trim()) return;
     const rating = buildRating();
 
     if (editingId) {
-      setPlayers((prev) =>
-        prev.map((p) =>
-          p.id === editingId
-            ? {
-                ...p,
-                name: newName.trim(),
-                rating,
-                ratingType: ratingType === 'none' ? null : ratingType,
-              }
-            : p,
-        ),
-      );
+      setPlayers((prev) => prev.map((p) =>
+        p.id === editingId ? { ...p, name: newName.trim(), rating, ratingType: ratingType === 'none' ? null : ratingType } : p
+      ));
       setEditingId(null);
     } else {
-      setPlayers((prev) => [
-        ...prev,
-        {
-          id: generateId(),
-          name: newName.trim(),
-          rating,
-          ratingType: ratingType === 'none' ? null : ratingType,
-          // Keep ustaRating alias for backwards compat with matchGenerator seeding
-          ustaRating: rating || '0',
-        },
-      ]);
+      setPlayers((prev) => [...prev, {
+        id: generateId(),
+        name: newName.trim(),
+        rating,
+        ratingType: ratingType === 'none' ? null : ratingType,
+        // Keep ustaRating alias for backwards compat with matchGenerator seeding
+        ustaRating: rating || '0',
+      }]);
     }
     setNewName('');
     setNewRating(ratingType === 'UTR' ? '8.0' : '3.5');
@@ -476,28 +351,19 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
     setBulkSuccess(parsed.length);
     if (parsed.length > 0) {
       // Add ustaRating alias for seeding
-      const withAlias = parsed.map((p) => ({
-        ...p,
-        ustaRating: p.rating || '0',
-      }));
+      const withAlias = parsed.map((p) => ({ ...p, ustaRating: p.rating || '0' }));
       setPlayers((prev) => [...prev, ...withAlias]);
       setBulkText('');
     }
   };
 
   // ── Doubles pairing ──────────────────────────────────────
-  const pairedIds = new Set(teams.flatMap((t) => t.players.map((p) => p.id)));
+  const pairedIds     = new Set(teams.flatMap((t) => t.players.map((p) => p.id)));
   const unpairedPlayers = players.filter((p) => !pairedIds.has(p.id));
 
   const addTeam = () => {
-    if (!pairSelect.p1 || !pairSelect.p2) {
-      setPairError('Select two players.');
-      return;
-    }
-    if (pairSelect.p1 === pairSelect.p2) {
-      setPairError('Players must be different.');
-      return;
-    }
+    if (!pairSelect.p1 || !pairSelect.p2) { setPairError('Select two players.'); return; }
+    if (pairSelect.p1 === pairSelect.p2)   { setPairError('Players must be different.'); return; }
     const p1 = players.find((p) => p.id === pairSelect.p1);
     const p2 = players.find((p) => p.id === pairSelect.p2);
     setTeams((prev) => [...prev, { id: generateId(), players: [p1, p2] }]);
@@ -535,14 +401,12 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
         <div className="card-header-top">
           <div>
             <div className="brand">Ladder League</div>
-            <div className="step-indicator">
-              Step 2 of 2 — Players &amp; Review
-            </div>
+            <div className="step-indicator">Step 2 of 2 — Players &amp; Review</div>
           </div>
           <ThemeToggle />
         </div>
         <div className="step-dots">
-          <div className="dot done" />
+          <div className="dot done"   />
           <div className="dot active" />
         </div>
       </div>
@@ -550,16 +414,16 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
       {/* ── League name banner ── */}
       <div className="card-body">
         <div className="league-name-banner">
-          <span className="league-name-sport-icon">
-            {getSportIcon(settings.sport, 20)}
-          </span>
+          <span className="league-name-sport-icon">{getSportIcon(settings.sport, 20)}</span>
           <span className="league-name-text">{settings.leagueName}</span>
         </div>
 
         {/* ── Two-column layout ── */}
         <div className="setup-review-grid">
+
           {/* ── LEFT: Player entry ── */}
           <div className="setup-left">
+
             {/* Entry mode switcher */}
             <div className="field-group">
               <label>Add Players</label>
@@ -568,12 +432,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
                   <button
                     key={m}
                     className={`segment ${entryMode === m ? 'active' : ''}`}
-                    onClick={() => {
-                      setEntryMode(m);
-                      setBulkErrors([]);
-                      setBulkSuccess(0);
-                      cancelEdit();
-                    }}
+                    onClick={() => { setEntryMode(m); setBulkErrors([]); setBulkSuccess(0); cancelEdit(); }}
                   >
                     {m === 'individual' ? 'One by One' : 'Bulk Paste'}
                   </button>
@@ -592,9 +451,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
                   placeholder="Full name"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === 'Enter' && newName.trim() && addOrSavePlayer()
-                  }
+                  onKeyDown={(e) => e.key === 'Enter' && newName.trim() && addOrSavePlayer()}
                   className="player-name-input"
                   style={{ marginBottom: '6px' }}
                 />
@@ -620,9 +477,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
                       onChange={(e) => setNewRating(e.target.value)}
                     >
                       {ratingOptions.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
+                        <option key={r} value={r}>{r}</option>
                       ))}
                     </select>
                   )}
@@ -652,9 +507,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
                     {editingId ? 'Save Changes' : '+ Add Player'}
                   </button>
                   {editingId && (
-                    <button className="btn-cancel" onClick={cancelEdit}>
-                      ✕ Cancel
-                    </button>
+                    <button className="btn-cancel" onClick={cancelEdit}>✕ Cancel</button>
                   )}
                 </div>
               </div>
@@ -668,32 +521,19 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
                   className="bulk-textarea"
                   placeholder={`One player per line (rating optional):\nJohn Smith 3.5\nJane Doe\nAlex Johnson 4.0`}
                   value={bulkText}
-                  onChange={(e) => {
-                    setBulkText(e.target.value);
-                    setBulkErrors([]);
-                    setBulkSuccess(0);
-                  }}
+                  onChange={(e) => { setBulkText(e.target.value); setBulkErrors([]); setBulkSuccess(0); }}
                   rows={5}
                 />
                 <div className="field-hint">
-                  Format: <code>Name</code> or <code>Name 3.5</code> — ratings
-                  are optional
+                  Format: <code>Name</code> or <code>Name 3.5</code> — ratings are optional
                 </div>
                 {bulkErrors.map((e, i) => (
-                  <div key={i} className="bulk-error-line">
-                    ⚠ {e}
-                  </div>
+                  <div key={i} className="bulk-error-line">⚠ {e}</div>
                 ))}
                 {bulkSuccess > 0 && (
-                  <div className="bulk-success">
-                    ✓ Added {bulkSuccess} player{bulkSuccess !== 1 ? 's' : ''}
-                  </div>
+                  <div className="bulk-success">✓ Added {bulkSuccess} player{bulkSuccess !== 1 ? 's' : ''}</div>
                 )}
-                <button
-                  className="btn-bulk-import"
-                  onClick={handleBulkImport}
-                  disabled={!bulkText.trim()}
-                >
+                <button className="btn-bulk-import" onClick={handleBulkImport} disabled={!bulkText.trim()}>
                   Import Players
                 </button>
               </div>
@@ -704,11 +544,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
               <div className="field-group">
                 <label>
                   Roster
-                  <span
-                    className={`label-count ${canLaunch ? '' : 'label-count-warn'}`}
-                  >
-                    {players.length}
-                  </span>
+                  <span className={`label-count ${canLaunch ? '' : 'label-count-warn'}`}>{players.length}</span>
                 </label>
                 <div className="player-list">
                   {players.map((p, i) => (
@@ -730,57 +566,28 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
                 <label>
                   Pair Teams
                   {unpairedPlayers.length > 0 && (
-                    <span className="label-count label-count-warn">
-                      {unpairedPlayers.length} unpaired
-                    </span>
+                    <span className="label-count label-count-warn">{unpairedPlayers.length} unpaired</span>
                   )}
                 </label>
                 <div className="pair-row">
-                  <select
-                    value={pairSelect.p1}
-                    onChange={(e) =>
-                      setPairSelect((s) => ({ ...s, p1: e.target.value }))
-                    }
-                  >
+                  <select value={pairSelect.p1} onChange={(e) => setPairSelect((s) => ({ ...s, p1: e.target.value }))}>
                     <option value="">Player 1</option>
-                    {unpairedPlayers.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
+                    {unpairedPlayers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                   <span className="pair-amp">&amp;</span>
-                  <select
-                    value={pairSelect.p2}
-                    onChange={(e) =>
-                      setPairSelect((s) => ({ ...s, p2: e.target.value }))
-                    }
-                  >
+                  <select value={pairSelect.p2} onChange={(e) => setPairSelect((s) => ({ ...s, p2: e.target.value }))}>
                     <option value="">Player 2</option>
-                    {unpairedPlayers
-                      .filter((p) => p.id !== pairSelect.p1)
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
+                    {unpairedPlayers.filter((p) => p.id !== pairSelect.p1).map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
                   </select>
-                  <button className="btn-add" onClick={addTeam}>
-                    +
-                  </button>
+                  <button className="btn-add" onClick={addTeam}>+</button>
                 </div>
                 {pairError && <div className="pair-error">⚠ {pairError}</div>}
                 {teams.length > 0 && (
                   <div className="player-list" style={{ marginTop: '0.5rem' }}>
                     {teams.map((t, i) => (
-                      <TeamRow
-                        key={t.id}
-                        team={t}
-                        index={i}
-                        onRemove={(id) =>
-                          setTeams((prev) => prev.filter((x) => x.id !== id))
-                        }
-                      />
+                      <TeamRow key={t.id} team={t} index={i} onRemove={(id) => setTeams((prev) => prev.filter((x) => x.id !== id))} />
                     ))}
                   </div>
                 )}
@@ -789,23 +596,17 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
 
             {players.length === 0 && (
               <div className="setup-empty-hint">
-                Add at least 2 players to generate matchups and preview the
-                schedule →
+                Add at least 2 players to generate matchups and preview the schedule →
               </div>
             )}
+
           </div>
 
           {/* ── RIGHT: Settings + preview ── */}
           <div className="setup-right">
-            <SettingsSummary
-              settings={settings}
-              overrides={overrides}
-              onOverride={setOverride}
-            />
+            <SettingsSummary settings={settings} overrides={overrides} onOverride={setOverride} />
 
-            {preview && (
-              <Round1Preview rounds={preview.rounds} isDoubles={isDoubles} />
-            )}
+            {preview && <Round1Preview rounds={preview.rounds} isDoubles={isDoubles} />}
 
             {players.length > 0 && !canLaunch && (
               <div className="launch-warning">
@@ -814,43 +615,28 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
             )}
 
             <div className="launch-notice">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
-              Seeding is based on rating. Players without a rating are seeded
-              last.
+              Seeding is based on rating. Players without a rating are seeded last.
             </div>
           </div>
+
         </div>
       </div>
 
       {/* ── Footer ── */}
       <div className="card-footer card-footer-two">
-        <button className="btn-back" onClick={onBack} disabled={launching}>
-          ← Back
-        </button>
+        <button className="btn-back" onClick={onBack} disabled={launching}>← Back</button>
         <button
           className={`btn-next btn-launch ${launching ? 'btn-launching' : ''}`}
           onClick={handleLaunchClick}
           disabled={!canLaunch || launching}
         >
-          {launching ? (
-            <>
-              <span className="launch-spinner" /> Generating League…
-            </>
-          ) : (
-            '🚀 Launch League'
-          )}
+          {launching
+            ? <><span className="launch-spinner" /> Generating League…</>
+            : '🚀 Launch League'
+          }
         </button>
       </div>
 
@@ -863,6 +649,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
         />
       )}
     </div>
+    </Portal>
   );
 }
 

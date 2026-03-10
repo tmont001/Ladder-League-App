@@ -1,3 +1,4 @@
+import Portal from '../shared/Portal';
 import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 
@@ -329,102 +330,104 @@ function ScoreEntryModal({ match, onClose }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title">Enter Score</div>
-          <button className="modal-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-
-        <div className="modal-body">
-          <div className="modal-matchup">
-            <span className="modal-player">{p1Name}</span>
-            <span className="modal-vs">vs</span>
-            <span className="modal-player">{p2Name}</span>
+    <Portal>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-title">Enter Score</div>
+            <button className="modal-close" onClick={onClose}>
+              ✕
+            </button>
           </div>
 
-          <div className="set-rows">
-            {sets.map((s, i) => {
-              // Hide this set row if the match was already decided by previous sets
-              let p1 = 0,
-                p2 = 0;
-              for (let j = 0; j < i; j++) {
-                const prev = sets[j];
-                const isSuperTb =
-                  j === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
-                const valid = isTennis
-                  ? isValidTennisSet(prev.p1, prev.p2, isSuperTb)
-                  : isValidPickleballGame(prev.p1, prev.p2);
-                if (valid) {
-                  const a = parseInt(prev.p1, 10),
-                    b = parseInt(prev.p2, 10);
-                  if (a > b) p1++;
-                  else p2++;
+          <div className="modal-body">
+            <div className="modal-matchup">
+              <span className="modal-player">{p1Name}</span>
+              <span className="modal-vs">vs</span>
+              <span className="modal-player">{p2Name}</span>
+            </div>
+
+            <div className="set-rows">
+              {sets.map((s, i) => {
+                // Hide this set row if the match was already decided by previous sets
+                let p1 = 0,
+                  p2 = 0;
+                for (let j = 0; j < i; j++) {
+                  const prev = sets[j];
+                  const isSuperTb =
+                    j === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
+                  const valid = isTennis
+                    ? isValidTennisSet(prev.p1, prev.p2, isSuperTb)
+                    : isValidPickleballGame(prev.p1, prev.p2);
+                  if (valid) {
+                    const a = parseInt(prev.p1, 10),
+                      b = parseInt(prev.p2, 10);
+                    if (a > b) p1++;
+                    else p2++;
+                  }
                 }
-              }
-              if (p1 >= setsNeeded || p2 >= setsNeeded) return null;
+                if (p1 >= setsNeeded || p2 >= setsNeeded) return null;
 
-              return (
-                <SetScoreRow
-                  key={i}
-                  index={i}
-                  sport={sport}
-                  thirdSetFormat={thirdSetFormat}
-                  isDeciding={maxSets > 1 && i === maxSets - 1}
-                  setScore={s}
-                  onSetChange={handleSetChange}
-                  p1Name={p1Name}
-                  p2Name={p2Name}
+                return (
+                  <SetScoreRow
+                    key={i}
+                    index={i}
+                    sport={sport}
+                    thirdSetFormat={thirdSetFormat}
+                    isDeciding={maxSets > 1 && i === maxSets - 1}
+                    setScore={s}
+                    onSetChange={handleSetChange}
+                    p1Name={p1Name}
+                    p2Name={p2Name}
+                  />
+                );
+              })}
+            </div>
+
+            {winnerName && (
+              <div className="winner-preview">
+                🏆 <strong>{winnerName}</strong> wins
+              </div>
+            )}
+
+            {error && <div className="modal-error">{error}</div>}
+
+            <div className="grid-2">
+              <div className="field-group">
+                <label>Date Played</label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
                 />
-              );
-            })}
-          </div>
-
-          {winnerName && (
-            <div className="winner-preview">
-              🏆 <strong>{winnerName}</strong> wins
-            </div>
-          )}
-
-          {error && <div className="modal-error">{error}</div>}
-
-          <div className="grid-2">
-            <div className="field-group">
-              <label>Date Played</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            <div className="field-group">
-              <label>Location</label>
-              <input
-                type="text"
-                placeholder="e.g. Court 3"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
+              </div>
+              <div className="field-group">
+                <label>Location</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Court 3"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="modal-footer">
-          <button className="btn-back" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="btn-next"
-            onClick={handleSubmit}
-            disabled={!result}
-          >
-            Submit Score
-          </button>
+          <div className="modal-footer">
+            <button className="btn-back" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              className="btn-next"
+              onClick={handleSubmit}
+              disabled={!result}
+            >
+              Submit Score
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }
 

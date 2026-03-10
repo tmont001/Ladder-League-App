@@ -1,8 +1,9 @@
+import Portal from '../shared/Portal';
 import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 
 function generateId() {
-  return Math.random().toString(36).slice(2, 11);
+  return Math.random().toString(36).substr(2, 9);
 }
 
 function getParticipantName(p, isDoubles) {
@@ -76,85 +77,87 @@ function ChallengeModal({ onClose }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title">Issue a Challenge</div>
-          <button className="modal-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-
-        <div className="modal-body">
-          <div className="challenge-info">
-            Players may challenge anyone ranked up to{' '}
-            <strong>{challengeSpots}</strong> spot
-            {challengeSpots !== 1 ? 's' : ''} above them.
+    <Portal>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-title">Issue a Challenge</div>
+            <button className="modal-close" onClick={onClose}>
+              ✕
+            </button>
           </div>
 
-          <div className="field-group">
-            <label>Challenger</label>
-            <select
-              value={challengerId}
-              onChange={(e) => handleChallenger(e.target.value)}
-            >
-              <option value="">Select challenger…</option>
-              {challengers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  #{rankMap[p.id] ?? '—'} {getParticipantName(p, isDoubles)}
+          <div className="modal-body">
+            <div className="challenge-info">
+              Players may challenge anyone ranked up to{' '}
+              <strong>{challengeSpots}</strong> spot
+              {challengeSpots !== 1 ? 's' : ''} above them.
+            </div>
+
+            <div className="field-group">
+              <label>Challenger</label>
+              <select
+                value={challengerId}
+                onChange={(e) => handleChallenger(e.target.value)}
+              >
+                <option value="">Select challenger…</option>
+                {challengers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    #{rankMap[p.id] ?? '—'} {getParticipantName(p, isDoubles)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field-group">
+              <label>Challenging</label>
+              <select
+                value={challengedId}
+                onChange={(e) => {
+                  setChallengedId(e.target.value);
+                  setError('');
+                }}
+                disabled={!challengerId}
+              >
+                <option value="">
+                  {challengerId
+                    ? validTargets.length === 0
+                      ? 'No eligible targets (already at top or window empty)'
+                      : 'Select opponent…'
+                    : 'Select challenger first'}
                 </option>
-              ))}
-            </select>
+                {validTargets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    #{rankMap[p.id] ?? '—'} {getParticipantName(p, isDoubles)}
+                  </option>
+                ))}
+              </select>
+              {challengerId && validTargets.length === 0 && (
+                <div className="field-hint" style={{ color: 'var(--gold)' }}>
+                  ⚠ No players within {challengeSpots} spot
+                  {challengeSpots !== 1 ? 's' : ''} above this challenger.
+                </div>
+              )}
+            </div>
+
+            {error && <div className="modal-error">{error}</div>}
           </div>
 
-          <div className="field-group">
-            <label>Challenging</label>
-            <select
-              value={challengedId}
-              onChange={(e) => {
-                setChallengedId(e.target.value);
-                setError('');
-              }}
-              disabled={!challengerId}
+          <div className="modal-footer">
+            <button className="btn-back" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              className="btn-next"
+              onClick={handleSubmit}
+              disabled={!challengerId || !challengedId}
             >
-              <option value="">
-                {challengerId
-                  ? validTargets.length === 0
-                    ? 'No eligible targets (already at top or window empty)'
-                    : 'Select opponent…'
-                  : 'Select challenger first'}
-              </option>
-              {validTargets.map((p) => (
-                <option key={p.id} value={p.id}>
-                  #{rankMap[p.id] ?? '—'} {getParticipantName(p, isDoubles)}
-                </option>
-              ))}
-            </select>
-            {challengerId && validTargets.length === 0 && (
-              <div className="field-hint" style={{ color: 'var(--gold)' }}>
-                ⚠ No players within {challengeSpots} spot
-                {challengeSpots !== 1 ? 's' : ''} above this challenger.
-              </div>
-            )}
+              Confirm Challenge
+            </button>
           </div>
-
-          {error && <div className="modal-error">{error}</div>}
-        </div>
-
-        <div className="modal-footer">
-          <button className="btn-back" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="btn-next"
-            onClick={handleSubmit}
-            disabled={!challengerId || !challengedId}
-          >
-            Confirm Challenge
-          </button>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }
 
