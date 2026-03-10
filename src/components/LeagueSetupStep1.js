@@ -30,7 +30,7 @@ const SPORTS = [
 
 // Only relevant for tennis when best_of_3 or best_of_5 is chosen
 const THIRD_SET_OPTIONS = [
-  { value: 'full_set', label: 'Full third set (first to 6)' },
+  { value: 'full_set', label: 'Full set (first to 6)' },
   { value: 'super_tiebreak', label: 'Super tiebreak (first to 10)' },
 ];
 
