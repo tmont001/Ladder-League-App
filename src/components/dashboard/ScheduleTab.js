@@ -15,7 +15,6 @@ function StatusBadge({ status, type }) {
       cls: 'badge-pending',
     },
     completed: { label: 'Completed', cls: 'badge-completed' },
-    forfeit: { label: 'Forfeit', cls: 'badge-forfeit' },
     skipped: { label: 'Skipped', cls: 'badge-skipped' },
   };
   const { label, cls } = map[status] || map.pending;
@@ -27,11 +26,11 @@ function MatchCard({ match, onEnterScore, onResolve }) {
   const p1Name = getParticipantName(match.p1, isDoubles);
   const p2Name = getParticipantName(match.p2, isDoubles);
   const isPending = match.status === 'pending';
-  const isCompleted = match.status === 'completed';
+  const isDone = match.status === 'completed';
 
   return (
     <div
-      className={`match-card ${isCompleted ? 'match-card-done' : ''} ${match.isBye ? 'match-card-bye' : ''}`}
+      className={`match-card ${isDone ? 'match-card-done' : ''} ${match.isBye ? 'match-card-bye' : ''}`}
     >
       <div className="match-card-left">
         <div className="match-players">
@@ -42,15 +41,18 @@ function MatchCard({ match, onEnterScore, onResolve }) {
           ) : (
             <>
               <span
-                className={`match-player-name ${isCompleted && match.result?.winnerId === match.p1?.id ? 'match-winner' : ''}`}
+                className={`match-player-name ${isDone && match.result?.winnerId === match.p1?.id ? 'match-winner' : ''}`}
               >
                 {p1Name}
               </span>
-              {isCompleted && match.result ? (
+              {isDone && match.result ? (
                 <span className="match-score-display">
                   {match.result.setScores.map((s, i) => (
                     <span key={i} className="match-set-score">
                       {s.p1}–{s.p2}
+                      {s.tiebreak && (
+                        <span className="match-tb-score"> ({s.tiebreak})</span>
+                      )}
                     </span>
                   ))}
                 </span>
@@ -58,7 +60,7 @@ function MatchCard({ match, onEnterScore, onResolve }) {
                 <span className="match-vs-text">vs</span>
               )}
               <span
-                className={`match-player-name ${isCompleted && match.result?.winnerId === match.p2?.id ? 'match-winner' : ''}`}
+                className={`match-player-name ${isDone && match.result?.winnerId === match.p2?.id ? 'match-winner' : ''}`}
               >
                 {p2Name}
               </span>
@@ -85,20 +87,12 @@ function MatchCard({ match, onEnterScore, onResolve }) {
             >
               Enter Score
             </button>
-            <div className="match-resolve-row">
-              <button
-                className="btn-resolve"
-                onClick={() => onResolve(match.id, 'forfeit')}
-              >
-                Forfeit
-              </button>
-              <button
-                className="btn-resolve"
-                onClick={() => onResolve(match.id, 'skipped')}
-              >
-                Skip
-              </button>
-            </div>
+            <button
+              className="btn-resolve"
+              onClick={() => onResolve(match.id, 'skipped')}
+            >
+              Skip
+            </button>
           </div>
         )}
       </div>
@@ -108,10 +102,7 @@ function MatchCard({ match, onEnterScore, onResolve }) {
 
 function RoundSection({ round, onEnterScore, onResolve }) {
   const completedCount = round.matches.filter(
-    (m) =>
-      m.status === 'completed' ||
-      m.status === 'forfeit' ||
-      m.status === 'skipped',
+    (m) => m.status === 'completed' || m.status === 'skipped',
   ).length;
   const totalNonBye = round.matches.filter((m) => !m.isBye).length;
 
@@ -129,7 +120,6 @@ function RoundSection({ round, onEnterScore, onResolve }) {
         </div>
       </div>
 
-      {/* Progress bar */}
       <div className="round-progress-bar">
         <div
           className="round-progress-fill"

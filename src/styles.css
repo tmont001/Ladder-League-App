@@ -2346,3 +2346,167 @@ input[type='range']::-webkit-slider-thumb {
   border-color: var(--border-mid);
   color: var(--cream);
 }
+
+/* ══════════════════════════════════════════════════════════
+   COMBINED STEP 2 — PLAYERS & REVIEW
+   ══════════════════════════════════════════════════════════ */
+
+/* Two-column layout: player entry left, settings+preview right */
+.setup-review-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 680px) {
+  .setup-review-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.setup-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.setup-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: sticky;
+  top: 1rem;
+}
+
+/* Compact summary card for sidebar */
+.summary-card-compact .summary-card-title {
+  font-size: 0.65rem;
+  padding: 0.55rem 0.85rem;
+}
+.summary-card-compact .summary-row {
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
+}
+.summary-card-compact .summary-row-label {
+  font-size: 0.65rem;
+}
+.summary-card-compact .summary-row-value {
+  font-size: 0.75rem;
+}
+.summary-card-compact .matchup-list {
+  padding: 0;
+}
+.matchup-list-compact .matchup-row {
+  padding: 0.3rem 0.85rem;
+  font-size: 0.75rem;
+}
+.matchup-list-compact .matchup-player {
+  font-size: 0.75rem;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Empty state hint */
+.setup-empty-hint {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  border: 1px dashed var(--border-faint);
+  border-radius: 2px;
+  margin-top: 0.5rem;
+}
+
+/* ─── Rating row ─────────────────────────────────────────── */
+.rating-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.rating-type-group {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.rating-type-btn {
+  padding: 0.3rem 0.65rem;
+  background: transparent;
+  border: 1.5px solid var(--border-faint);
+  border-radius: 2px;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.rating-type-btn:hover {
+  border-color: var(--border-mid);
+  color: var(--cream);
+}
+.rating-type-btn.active {
+  background: var(--glow);
+  border-color: var(--border-active);
+  color: var(--lime);
+}
+
+/* No-rating badge variant */
+.player-rating-none {
+  color: var(--muted) !important;
+  background: transparent !important;
+  border-color: var(--border-faint) !important;
+  font-style: italic;
+}
+
+/* ─── Confirmation modal ─────────────────────────────────── */
+.modal-sm {
+  max-width: 380px !important;
+}
+
+.confirm-icon {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.confirm-text {
+  font-size: 0.9rem;
+  color: var(--cream);
+  line-height: 1.6;
+  text-align: center;
+}
+.confirm-text strong {
+  color: var(--lime);
+}
+
+.confirm-subtext {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.6;
+  text-align: center;
+}
+.confirm-subtext strong {
+  color: var(--cream);
+}
+
+/* ─── Match actions (no forfeit) ─────────────────────────── */
+.match-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Tiebreak score inline in match card */
+.match-tb-score {
+  font-size: 0.7em;
+  color: var(--gold);
+  margin-left: 1px;
+}
