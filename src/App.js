@@ -3,6 +3,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import LeagueSetupStep1 from './components/LeagueSetupStep1';
 import LeagueSetupStep2 from './components/LeagueSetupStep2';
 import LeagueSetupStep3 from './components/LeagueSetupStep3';
+import Dashboard from './components/dashboard/Dashboard';
 
 function AppContent() {
   const [step, setStep] = useState(1);
@@ -22,7 +23,7 @@ function AppContent() {
 
   const handleLaunch = (generatedLeague) => {
     setLeagueData(generatedLeague);
-    setStep(4); // Dashboard — coming next
+    setStep(4);
   };
 
   return (
@@ -44,61 +45,7 @@ function AppContent() {
         />
       )}
       {step === 4 && (
-        <div
-          style={{
-            color: 'var(--cream)',
-            fontFamily: 'DM Sans, sans-serif',
-            textAlign: 'center',
-            padding: '4rem 2rem',
-          }}
-        >
-          <div
-            style={{
-              color: 'var(--lime)',
-              fontFamily: 'Bebas Neue, sans-serif',
-              fontSize: '2rem',
-              letterSpacing: '0.08em',
-            }}
-          >
-            {leagueSettings?.leagueName}
-          </div>
-          <p
-            style={{
-              marginTop: '0.75rem',
-              color: 'var(--muted)',
-              fontSize: '0.85rem',
-            }}
-          >
-            {leagueData?.seededParticipants?.length} participants · Round 1 of{' '}
-            {leagueSettings?.rounds} generated
-          </p>
-          <p
-            style={{
-              marginTop: '2rem',
-              color: 'var(--muted)',
-              fontSize: '0.8rem',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Dashboard coming next
-          </p>
-          <button
-            onClick={() => setStep(3)}
-            style={{
-              marginTop: '1.5rem',
-              background: 'none',
-              border: '1px solid var(--lime)',
-              color: 'var(--lime)',
-              padding: '0.5rem 1.2rem',
-              cursor: 'pointer',
-              borderRadius: '2px',
-              fontFamily: 'DM Sans, sans-serif',
-            }}
-          >
-            ← Back to Review
-          </button>
-        </div>
+        <Dashboard settings={leagueSettings} leagueData={leagueData} />
       )}
     </div>
   );
