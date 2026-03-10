@@ -127,7 +127,25 @@ function PlayerRow({ player, index, onRemove, onEdit }) {
     <div className="player-row">
       <div className="player-rank">{index + 1}</div>
       <div className="player-info">
-        <span className="player-name">{player.name}</span>
+        <div className="player-name-line">
+          <span className="player-name">{player.name}</span>
+          {player.utrUrl && (
+            <a
+              className="utr-profile-link"
+              href={
+                player.utrUrl.startsWith('http')
+                  ? player.utrUrl
+                  : `https://${player.utrUrl}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View UTR profile"
+              onClick={(e) => e.stopPropagation()}
+            >
+              UTR ↗
+            </a>
+          )}
+        </div>
         {ratingLabel ? (
           <span className="player-rating-badge">{ratingLabel}</span>
         ) : (
@@ -364,6 +382,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
   const [newName, setNewName] = useState('');
   const [ratingType, setRatingType] = useState('USTA'); // 'USTA' | 'UTR' | 'none'
   const [newRating, setNewRating] = useState('3.5');
+  const [newUtrUrl, setNewUtrUrl] = useState('');
   const [editingId, setEditingId] = useState(null);
 
   // Bulk paste
@@ -420,6 +439,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
   const addOrSavePlayer = () => {
     if (!newName.trim()) return;
     const rating = buildRating();
+    const utrUrl = newUtrUrl.trim() || null;
 
     if (editingId) {
       setPlayers((prev) =>
@@ -430,6 +450,8 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
                 name: newName.trim(),
                 rating,
                 ratingType: ratingType === 'none' ? null : ratingType,
+                utrUrl,
+                ustaRating: rating || '0',
               }
             : p,
         ),
@@ -443,13 +465,14 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
           name: newName.trim(),
           rating,
           ratingType: ratingType === 'none' ? null : ratingType,
-          // Keep ustaRating alias for backwards compat with matchGenerator seeding
+          utrUrl,
           ustaRating: rating || '0',
         },
       ]);
     }
     setNewName('');
     setNewRating(ratingType === 'UTR' ? '8.0' : '3.5');
+    setNewUtrUrl('');
   };
 
   const startEdit = (player) => {
@@ -457,6 +480,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
     setNewName(player.name);
     setRatingType(player.ratingType || (player.rating ? 'USTA' : 'none'));
     setNewRating(player.rating || '3.5');
+    setNewUtrUrl(player.utrUrl || '');
     setEntryMode('individual');
   };
 
@@ -464,6 +488,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
     setEditingId(null);
     setNewName('');
     setNewRating('3.5');
+    setNewUtrUrl('');
   };
 
   const removePlayer = (id) => {
@@ -643,6 +668,17 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
                     ↳ Player will be seeded randomly.
                   </div>
                 )}
+
+                {/* UTR profile URL */}
+                <div className="utr-url-row">
+                  <input
+                    type="url"
+                    className="utr-url-input"
+                    placeholder="UTR profile URL (optional) — utrsports.net/profiles/…"
+                    value={newUtrUrl}
+                    onChange={(e) => setNewUtrUrl(e.target.value)}
+                  />
+                </div>
 
                 {/* Add / Save button row */}
                 <div className="player-add-row">
