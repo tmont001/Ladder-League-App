@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
-import { useTheme } from '../context/ThemeContext';
+import ThemeToggle from './shared/ThemeToggle';
 
 const SPORTS = [
   {
@@ -28,64 +28,31 @@ const SPORTS = [
   },
 ];
 
-function ThemeToggle() {
-  const { isDark, toggleTheme } = useTheme();
-  return (
-    <button
-      className="theme-toggle"
-      onClick={toggleTheme}
-      aria-label="Toggle theme"
-    >
-      {isDark ? (
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <circle cx="12" cy="12" r="5" />
-          <line x1="12" y1="1" x2="12" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="23" />
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-          <line x1="1" y1="12" x2="3" y2="12" />
-          <line x1="21" y1="12" x2="23" y2="12" />
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-        </svg>
-      ) : (
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      )}
-      <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
-    </button>
-  );
-}
+// Only relevant for tennis when best_of_3 or best_of_5 is chosen
+const THIRD_SET_OPTIONS = [
+  { value: 'full_set', label: 'Full third set (first to 6)' },
+  { value: 'super_tiebreak', label: 'Super tiebreak (first to 10)' },
+];
 
-function LeagueSetupStep1({ onNext }) {
-  const [settings, setSettings] = useState({
-    leagueName: '',
-    sport: 'tennis',
-    format: 'best_of_3',
-    singlesOrDoubles: 'singles',
-    rounds: 6,
-    challengeSpots: 2,
-    autoAdvance: true,
-  });
+function LeagueSetupStep1({ onNext, initialSettings }) {
+  const [settings, setSettings] = useState(
+    initialSettings || {
+      leagueName: '',
+      sport: 'tennis',
+      format: 'best_of_3',
+      thirdSetFormat: 'full_set',
+      singlesOrDoubles: 'singles',
+      rounds: 6,
+      challengeSpots: 2,
+      autoAdvance: true,
+    },
+  );
 
   const selectedSport = SPORTS.find((s) => s.id === settings.sport);
+  const isTennis = settings.sport === 'tennis';
+  const showThirdSetOption =
+    isTennis &&
+    (settings.format === 'best_of_3' || settings.format === 'best_of_5');
   const isValid = settings.leagueName.trim().length > 0;
 
   const set = (key, val) => setSettings((prev) => ({ ...prev, [key]: val }));
@@ -183,6 +150,29 @@ function LeagueSetupStep1({ onNext }) {
             </select>
           </div>
         </div>
+
+        {/* Third Set / Super Tiebreak option — tennis only */}
+        {showThirdSetOption && (
+          <div className="field-group">
+            <label>Deciding Set Format</label>
+            <div className="segment-group">
+              {THIRD_SET_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  className={`segment ${settings.thirdSetFormat === o.value ? 'active' : ''}`}
+                  onClick={() => set('thirdSetFormat', o.value)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <div className="field-hint">
+              {settings.thirdSetFormat === 'super_tiebreak'
+                ? '↳ Deciding set is a super tiebreak played to 10 points (win by 2)'
+                : '↳ Deciding set is a full set played to 6 games'}
+            </div>
+          </div>
+        )}
 
         {/* Number of Rounds */}
         <div className="field-group">
