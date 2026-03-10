@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import LeagueSetupStep1 from './components/LeagueSetupStep1';
 import LeagueSetupStep2 from './components/LeagueSetupStep2';
+import LeagueSetupStep3 from './components/LeagueSetupStep3';
 
 function AppContent() {
   const [step, setStep] = useState(1);
   const [leagueSettings, setLeagueSettings] = useState(null);
   const [playerData, setPlayerData] = useState(null);
+  const [leagueData, setLeagueData] = useState(null);
 
   const handleStep1Next = (settings) => {
     setLeagueSettings(settings);
@@ -16,8 +18,11 @@ function AppContent() {
   const handleStep2Next = (data) => {
     setPlayerData(data);
     setStep(3);
-    // Step 3 coming next
-    console.log('Player data saved:', data);
+  };
+
+  const handleLaunch = (generatedLeague) => {
+    setLeagueData(generatedLeague);
+    setStep(4); // Dashboard — coming next
   };
 
   return (
@@ -31,21 +36,55 @@ function AppContent() {
         />
       )}
       {step === 3 && (
+        <LeagueSetupStep3
+          settings={leagueSettings}
+          playerData={playerData}
+          onLaunch={handleLaunch}
+          onBack={() => setStep(2)}
+        />
+      )}
+      {step === 4 && (
         <div
           style={{
             color: 'var(--cream)',
             fontFamily: 'DM Sans, sans-serif',
             textAlign: 'center',
-            marginTop: '4rem',
+            padding: '4rem 2rem',
           }}
         >
-          <h2>Step 3: Review &amp; Launch — Coming Soon</h2>
-          <p style={{ marginTop: '1rem', color: 'var(--muted)' }}>
-            {playerData?.players?.length} players ready for{' '}
-            <strong>{leagueSettings?.leagueName}</strong>
+          <div
+            style={{
+              color: 'var(--lime)',
+              fontFamily: 'Bebas Neue, sans-serif',
+              fontSize: '2rem',
+              letterSpacing: '0.08em',
+            }}
+          >
+            {leagueSettings?.leagueName}
+          </div>
+          <p
+            style={{
+              marginTop: '0.75rem',
+              color: 'var(--muted)',
+              fontSize: '0.85rem',
+            }}
+          >
+            {leagueData?.seededParticipants?.length} participants · Round 1 of{' '}
+            {leagueSettings?.rounds} generated
+          </p>
+          <p
+            style={{
+              marginTop: '2rem',
+              color: 'var(--muted)',
+              fontSize: '0.8rem',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Dashboard coming next
           </p>
           <button
-            onClick={() => setStep(2)}
+            onClick={() => setStep(3)}
             style={{
               marginTop: '1.5rem',
               background: 'none',
@@ -57,7 +96,7 @@ function AppContent() {
               fontFamily: 'DM Sans, sans-serif',
             }}
           >
-            ← Back
+            ← Back to Review
           </button>
         </div>
       )}

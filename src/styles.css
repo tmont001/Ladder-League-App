@@ -850,3 +850,279 @@ input[type='range']::-webkit-slider-thumb {
   border-color: var(--border-mid);
   color: var(--cream);
 }
+
+/* ══════════════════════════════════════════════════════════
+   STEP 3 — REVIEW & LAUNCH
+   ══════════════════════════════════════════════════════════ */
+
+/* Wider card for the two-column layout */
+.wizard-card-wide {
+  max-width: 760px;
+}
+
+/* ─── League name banner ─────────────────────────────────── */
+.league-name-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 1rem 1.2rem;
+  background: var(--glow);
+  border: 1.5px solid var(--border-mid);
+  border-radius: 2px;
+}
+
+.league-name-sport-icon {
+  color: var(--lime);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.league-name-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  color: var(--cream);
+  line-height: 1;
+}
+
+/* ─── Two-column review grid ─────────────────────────────── */
+.review-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 560px) {
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Summary cards ──────────────────────────────────────── */
+.summary-card {
+  background: var(--court-light);
+  border: 1.5px solid var(--border-faint);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.summary-card-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.7rem 1rem 0.5rem;
+  border-bottom: 1px solid var(--border-faint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ─── Settings rows ──────────────────────────────────────── */
+.summary-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--border-faint);
+  gap: 1rem;
+}
+.summary-row:last-child {
+  border-bottom: none;
+}
+
+.summary-row-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.summary-row-value {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--cream);
+  text-align: right;
+}
+
+.summary-sport-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cream);
+}
+
+/* ─── Roster preview ─────────────────────────────────────── */
+.roster-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.roster-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border-faint);
+}
+.roster-row:last-child {
+  border-bottom: none;
+}
+
+.roster-seed {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.9rem;
+  color: var(--muted);
+  min-width: 16px;
+  text-align: center;
+}
+
+.roster-name {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--cream);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-show-more {
+  width: 100%;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border-faint);
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.btn-show-more:hover {
+  color: var(--lime);
+}
+
+/* ─── Round 1 matchup preview ────────────────────────────── */
+.matchup-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.matchup-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--border-faint);
+  animation: fadeIn 0.25s ease both;
+}
+.matchup-row:last-child {
+  border-bottom: none;
+}
+
+.matchup-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.9rem;
+  color: var(--muted);
+  min-width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.matchup-vs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.matchup-bye {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.matchup-player {
+  font-size: 0.82rem;
+  color: var(--cream);
+  font-weight: 500;
+}
+
+.matchup-divider {
+  font-size: 0.68rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.matchup-bye-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  background: rgba(232, 200, 74, 0.1);
+  border: 1px solid rgba(232, 200, 74, 0.25);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+
+/* ─── Launch notice ──────────────────────────────────────── */
+.launch-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0.75rem 1rem;
+  background: var(--court-light);
+  border: 1px solid var(--border-faint);
+  border-radius: 2px;
+  font-size: 0.73rem;
+  color: var(--muted);
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+.launch-notice svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--muted);
+}
+
+/* ─── Launch button states ───────────────────────────────── */
+.btn-launch {
+  flex: 1;
+  font-size: 1.1rem;
+}
+
+.btn-launching {
+  opacity: 0.8;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.launch-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(26, 46, 26, 0.3);
+  border-top-color: var(--court);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
