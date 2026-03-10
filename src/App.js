@@ -10,6 +10,8 @@ function AppContent() {
   const [leagueSettings, setLeagueSettings] = useState(null);
   const [playerData, setPlayerData] = useState(null);
   const [leagueData, setLeagueData] = useState(null);
+  // effectiveSettings may differ from leagueSettings if Step3 overrides rounds
+  const [effectiveSettings, setEffectiveSettings] = useState(null);
 
   const handleStep1Next = (settings) => {
     setLeagueSettings(settings);
@@ -21,19 +23,27 @@ function AppContent() {
     setStep(3);
   };
 
-  const handleLaunch = (generatedLeague) => {
+  // Step3 passes back both generated data AND the effective settings (with overrides)
+  const handleLaunch = (generatedLeague, finalSettings) => {
     setLeagueData(generatedLeague);
+    setEffectiveSettings(finalSettings || leagueSettings);
     setStep(4);
   };
 
   return (
     <div className="app">
-      {step === 1 && <LeagueSetupStep1 onNext={handleStep1Next} />}
+      {step === 1 && (
+        <LeagueSetupStep1
+          onNext={handleStep1Next}
+          initialSettings={leagueSettings}
+        />
+      )}
       {step === 2 && (
         <LeagueSetupStep2
           settings={leagueSettings}
           onNext={handleStep2Next}
           onBack={() => setStep(1)}
+          initialData={playerData}
         />
       )}
       {step === 3 && (
@@ -45,7 +55,10 @@ function AppContent() {
         />
       )}
       {step === 4 && (
-        <Dashboard settings={leagueSettings} leagueData={leagueData} />
+        <Dashboard
+          settings={effectiveSettings || leagueSettings}
+          leagueData={leagueData}
+        />
       )}
     </div>
   );

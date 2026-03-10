@@ -1769,13 +1769,16 @@ input[type='range']::-webkit-slider-thumb {
 
 .modal-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 1000;
   padding: 1rem;
   animation: fadeIn 0.2s ease both;
 }
@@ -1956,4 +1959,201 @@ input[type='range']::-webkit-slider-thumb {
 }
 .challenge-info strong {
   color: var(--cream);
+}
+
+/* ══════════════════════════════════════════════════════════
+   STEP 3 — EDITABLE OVERRIDES
+   ══════════════════════════════════════════════════════════ */
+
+.summary-edit-hint {
+  margin-left: auto;
+  font-size: 0.6rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  opacity: 0.7;
+  font-style: italic;
+  text-transform: none;
+}
+
+.summary-row-edit {
+  background: var(--glow);
+}
+
+.summary-inline-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-stepper {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--court-mid);
+  border: 1.5px solid var(--border-mid);
+  border-radius: 2px;
+  color: var(--lime);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+.edit-stepper:hover {
+  background: var(--glow);
+  border-color: var(--border-active);
+}
+
+.edit-stepper-val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem;
+  color: var(--lime);
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Roster editable rows */
+.roster-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border-faint);
+}
+.roster-row:last-child {
+  border-bottom: none;
+}
+
+.roster-remove-btn {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.roster-remove-btn:hover {
+  background: rgba(232, 90, 74, 0.1);
+  border-color: rgba(232, 90, 74, 0.3);
+  color: var(--danger);
+}
+
+.roster-excluded {
+  border-top: 1px solid var(--border-faint);
+  padding: 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(232, 90, 74, 0.04);
+}
+
+.roster-excluded-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.roster-excluded-name {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.roster-readd-btn {
+  background: transparent;
+  border: 1px solid var(--border-faint);
+  border-radius: 2px;
+  color: var(--lime);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.roster-readd-btn:hover {
+  background: var(--glow);
+  border-color: var(--border-mid);
+}
+
+.launch-warning {
+  padding: 0.65rem 1rem;
+  background: rgba(232, 90, 74, 0.08);
+  border: 1px solid rgba(232, 90, 74, 0.25);
+  border-radius: 2px;
+  font-size: 0.78rem;
+  color: var(--danger);
+  letter-spacing: 0.02em;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SCORE ENTRY — DROPDOWN STYLE
+   ══════════════════════════════════════════════════════════ */
+
+.set-inputs-dropdown {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.score-select {
+  flex: 1;
+  padding: 0.4rem 0.6rem !important;
+  font-size: 0.88rem !important;
+  background: var(--court) !important;
+  border: 1.5px solid var(--border-faint) !important;
+  border-radius: 2px;
+  color: var(--cream) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  cursor: pointer;
+  min-width: 0;
+}
+.score-select:focus {
+  border-color: var(--border-active) !important;
+  outline: none;
+}
+
+.score-select-tb {
+  flex: 0.8;
+  font-size: 0.8rem !important;
+  border-color: rgba(232, 200, 74, 0.3) !important;
+  background: rgba(232, 200, 74, 0.05) !important;
+}
+.score-select-tb:focus {
+  border-color: var(--gold) !important;
+}
+
+.set-deciding-tag {
+  margin-left: 4px;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: rgba(232, 200, 74, 0.1);
+  border: 1px solid rgba(232, 200, 74, 0.25);
+  border-radius: 8px;
+  padding: 1px 5px;
+  vertical-align: middle;
+}
+
+/* Step 1 — field hint inside segment group */
+.field-hint {
+  font-size: 0.68rem;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  margin-top: 2px;
 }
