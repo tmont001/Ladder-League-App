@@ -1,105 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 
-// ─── Score option generators ──────────────────────────────
+// ─── Valid score ranges per sport ─────────────────────────
 
-/**
- * Generates all valid tennis set score options as [p1, p2] pairs.
- * Includes tiebreak scores (7-6) with a sub-selector for tiebreak score.
- */
-function getTennisSetOptions() {
-  const options = [];
-  // Standard sets
-  for (let winner = 0; winner <= 1; winner++) {
-    const scores = [
-      [6, 0],
-      [6, 1],
-      [6, 2],
-      [6, 3],
-      [6, 4], // 6-x
-      [7, 5], // 7-5
-      [7, 6], // tiebreak
-    ];
-    scores.forEach(([a, b]) => {
-      const [p1, p2] = winner === 0 ? [a, b] : [b, a];
-      options.push({
-        label: `${p1}–${p2}${p1 === 7 && p2 === 6 ? ' (TB)' : ''}`,
-        p1,
-        p2,
-        isTiebreak: p1 === 7 && p2 === 6,
-      });
-    });
-  }
-  return options;
+function getTennisP1Options(isSuperTb) {
+  if (isSuperTb) return Array.from({ length: 21 }, (_, i) => i); // 0-20 for super TB
+  return [0, 1, 2, 3, 4, 5, 6, 7]; // 0-7 (7 only for tiebreak)
 }
 
-/**
- * Generates all valid pickleball game score options.
- */
-function getPickleballGameOptions() {
-  const options = [];
-  for (let winner = 0; winner <= 1; winner++) {
-    // Standard: 11-x where x is 0-9
-    for (let loser = 0; loser <= 9; loser++) {
-      const [p1, p2] = winner === 0 ? [11, loser] : [loser, 11];
-      options.push({ label: `${p1}–${p2}`, p1, p2, isTiebreak: false });
-    }
-    // Overtime: 12-10, 13-11, etc up to 21-19
-    for (let base = 10; base <= 19; base++) {
-      const [p1, p2] = winner === 0 ? [base + 2, base] : [base, base + 2];
-      options.push({ label: `${p1}–${p2}`, p1, p2, isTiebreak: false });
-    }
-  }
-  return options;
+function getTennisP2Options(isSuperTb) {
+  return getTennisP1Options(isSuperTb);
 }
 
-/**
- * Super tiebreak options (first to 10, win by 2) — used as deciding set.
- */
-function getSuperTiebreakOptions() {
-  const options = [];
-  for (let winner = 0; winner <= 1; winner++) {
-    for (let loser = 0; loser <= 8; loser++) {
-      const [p1, p2] = winner === 0 ? [10, loser] : [loser, 10];
-      options.push({ label: `${p1}–${p2}`, p1, p2 });
-    }
-    // Overtime: 11-9, 12-10...
-    for (let base = 9; base <= 18; base++) {
-      const [p1, p2] = winner === 0 ? [base + 2, base] : [base, base + 2];
-      options.push({ label: `${p1}–${p2}`, p1, p2 });
-    }
-  }
-  return options;
+function getPickleballOptions() {
+  return Array.from({ length: 30 }, (_, i) => i); // 0-29
 }
 
-/**
- * Tiebreak score options for within a 7-6 set (first to 7, win by 2).
- */
-function getTiebreakScoreOptions() {
-  const options = [];
-  for (let winner = 0; winner <= 1; winner++) {
-    for (let loser = 0; loser <= 5; loser++) {
-      const [p1, p2] = winner === 0 ? [7, loser] : [loser, 7];
-      options.push({ label: `${p1}–${p2}`, p1, p2 });
-    }
-    // Overtime: 8-6, 9-7...
-    for (let base = 6; base <= 14; base++) {
-      const [p1, p2] = winner === 0 ? [base + 2, base] : [base, base + 2];
-      options.push({ label: `${p1}–${p2}`, p1, p2 });
-    }
+// Validate a completed tennis set score
+function isValidTennisSet(p1, p2, isSuperTb) {
+  if (p1 === '' || p2 === '') return false;
+  const a = parseInt(p1, 10),
+    b = parseInt(p2, 10);
+  if (isNaN(a) || isNaN(b)) return false;
+  if (isSuperTb) {
+    // first to 10, win by 2
+    const hi = Math.max(a, b),
+      lo = Math.min(a, b);
+    return hi >= 10 && hi - lo >= 2;
   }
-  return options;
+  if (a === 7 && (b === 6 || b === 5)) return true;
+  if (b === 7 && (a === 6 || a === 5)) return true;
+  if (a === 6 && b <= 4) return true;
+  if (b === 6 && a <= 4) return true;
+  return false;
 }
 
-const TENNIS_SET_OPTIONS = getTennisSetOptions();
-const PICKLEBALL_GAME_OPTIONS = getPickleballGameOptions();
-const TIEBREAK_OPTIONS = getTiebreakScoreOptions();
-const SUPER_TB_OPTIONS = getSuperTiebreakOptions();
+function isValidPickleballGame(p1, p2) {
+  if (p1 === '' || p2 === '') return false;
+  const a = parseInt(p1, 10),
+    b = parseInt(p2, 10);
+  if (isNaN(a) || isNaN(b)) return false;
+  const hi = Math.max(a, b),
+    lo = Math.min(a, b);
+  return hi >= 11 && hi - lo >= 2;
+}
 
-// ─── Helpers ──────────────────────────────────────────────
-
-function getParticipantName(p, isDoubles) {
-  return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
+// Is this tennis set a tiebreak (7-6)?
+function isTennisSetTiebreak(p1, p2) {
+  return (
+    (parseInt(p1, 10) === 7 && parseInt(p2, 10) === 6) ||
+    (parseInt(p1, 10) === 6 && parseInt(p2, 10) === 7)
+  );
 }
 
 function getSetCount(format) {
@@ -109,29 +60,33 @@ function getSetCount(format) {
   return 3;
 }
 
-// ─── Single Set Score Row ────────────────────────────────
+function getParticipantName(p, isDoubles) {
+  return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
+}
+
+// ─── Single set score row ────────────────────────────────
 
 function SetScoreRow({
   index,
   sport,
   thirdSetFormat,
-  isDecidingSet,
-  value,
-  tbValue,
-  onChange,
-  onTbChange,
+  isDeciding,
+  setScore,
+  onSetChange,
   p1Name,
   p2Name,
 }) {
   const isTennis = sport === 'tennis';
-  const isSuperTb = isDecidingSet && thirdSetFormat === 'super_tiebreak';
-  const options = isSuperTb
-    ? SUPER_TB_OPTIONS
-    : isTennis
-      ? TENNIS_SET_OPTIONS
-      : PICKLEBALL_GAME_OPTIONS;
-  const selectedOpt = options.find((o) => o.label === value);
-  const showTbInput = isTennis && !isSuperTb && selectedOpt?.isTiebreak;
+  const isSuperTb = isDeciding && thirdSetFormat === 'super_tiebreak';
+
+  const { p1, p2, tbP1, tbP2 } = setScore;
+
+  const isValid = isTennis
+    ? isValidTennisSet(p1, p2, isSuperTb)
+    : isValidPickleballGame(p1, p2);
+
+  const showTb =
+    isTennis && !isSuperTb && isValid && isTennisSetTiebreak(p1, p2);
 
   const label = isSuperTb
     ? 'Super TB'
@@ -139,67 +94,114 @@ function SetScoreRow({
       ? `Set ${index + 1}`
       : `Game ${index + 1}`;
 
+  // Build score options
+  const p1Opts = isTennis
+    ? getTennisP1Options(isSuperTb)
+    : getPickleballOptions();
+  const p2Opts = isTennis
+    ? getTennisP2Options(isSuperTb)
+    : getPickleballOptions();
+
+  // Tiebreak score options: first to 7 (win by 2), displayed as p1score/p2score
+  const tbOpts = Array.from({ length: 15 }, (_, i) => i); // 0-14
+
+  const hasScore = p1 !== '' && p2 !== '';
+
   return (
-    <div className="set-row">
+    <div
+      className={`set-row set-row-dual ${hasScore && !isValid ? 'set-row-invalid' : ''}`}
+    >
       <span className="set-label">
         {label}
-        {isDecidingSet && !isSuperTb && (
+        {isDeciding && !isSuperTb && (
           <span className="set-deciding-tag">deciding</span>
         )}
       </span>
-      <div className="set-inputs set-inputs-dropdown">
-        <select
-          className="score-select"
-          value={value}
-          onChange={(e) => onChange(index, e.target.value)}
-        >
-          <option value="">— select —</option>
-          <optgroup label={`${p1Name} wins`}>
-            {options
-              .filter((o) => o.p1 > o.p2)
-              .map((o) => (
-                <option key={`p1-${o.label}`} value={o.label}>
-                  {o.label}
-                </option>
-              ))}
-          </optgroup>
-          <optgroup label={`${p2Name} wins`}>
-            {options
-              .filter((o) => o.p2 > o.p1)
-              .map((o) => (
-                <option key={`p2-${o.label}`} value={o.label}>
-                  {o.label}
-                </option>
-              ))}
-          </optgroup>
-        </select>
 
-        {/* Tiebreak score sub-selector */}
-        {showTbInput && (
+      <div className="set-dual-inputs">
+        {/* P1 score */}
+        <div className="set-player-score">
+          <span className="set-player-label">{p1Name.split(' ')[0]}</span>
           <select
-            className="score-select score-select-tb"
-            value={tbValue}
-            onChange={(e) => onTbChange(index, e.target.value)}
+            className="score-dropdown"
+            value={p1}
+            onChange={(e) => onSetChange(index, 'p1', e.target.value)}
           >
-            <option value="">TB score…</option>
-            <optgroup label={`${p1Name} wins TB`}>
-              {TIEBREAK_OPTIONS.filter((o) => o.p1 > o.p2).map((o) => (
-                <option key={`tb-p1-${o.label}`} value={o.label}>
-                  {o.label}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label={`${p2Name} wins TB`}>
-              {TIEBREAK_OPTIONS.filter((o) => o.p2 > o.p1).map((o) => (
-                <option key={`tb-p2-${o.label}`} value={o.label}>
-                  {o.label}
-                </option>
-              ))}
-            </optgroup>
+            <option value="">—</option>
+            {p1Opts.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
           </select>
+        </div>
+
+        <span className="set-dual-sep">–</span>
+
+        {/* P2 score */}
+        <div className="set-player-score">
+          <select
+            className="score-dropdown"
+            value={p2}
+            onChange={(e) => onSetChange(index, 'p2', e.target.value)}
+          >
+            <option value="">—</option>
+            {p2Opts.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+          <span className="set-player-label">{p2Name.split(' ')[0]}</span>
+        </div>
+
+        {/* Validity tick */}
+        {hasScore && (
+          <span className={`set-validity ${isValid ? 'valid' : 'invalid'}`}>
+            {isValid ? '✓' : '✗'}
+          </span>
         )}
       </div>
-      {value && <span className="set-validity valid">✓</span>}
+
+      {/* Tiebreak score row — appears when set is 7-6 */}
+      {showTb && (
+        <div className="tb-score-row">
+          <span className="tb-label">Tiebreak</span>
+          <div className="set-dual-inputs">
+            <div className="set-player-score">
+              <span className="set-player-label">{p1Name.split(' ')[0]}</span>
+              <select
+                className="score-dropdown score-dropdown-sm"
+                value={tbP1}
+                onChange={(e) => onSetChange(index, 'tbP1', e.target.value)}
+              >
+                <option value="">—</option>
+                {tbOpts.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span className="set-dual-sep">–</span>
+            <div className="set-player-score">
+              <select
+                className="score-dropdown score-dropdown-sm"
+                value={tbP2}
+                onChange={(e) => onSetChange(index, 'tbP2', e.target.value)}
+              >
+                <option value="">—</option>
+                {tbOpts.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+              <span className="set-player-label">{p2Name.split(' ')[0]}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -218,60 +220,49 @@ function ScoreEntryModal({ match, onClose }) {
   const p1Name = getParticipantName(match.p1, isDoubles);
   const p2Name = getParticipantName(match.p2, isDoubles);
 
-  // setValues[i] = selected score label string e.g. "6-3"
-  const [setValues, setSetValues] = useState(Array(maxSets).fill(''));
-  // tbValues[i] = tiebreak score label for set i (only used when set is 7-6)
-  const [tbValues, setTbValues] = useState(Array(maxSets).fill(''));
+  // Each set: { p1, p2, tbP1, tbP2 }
+  const [sets, setSets] = useState(
+    Array.from({ length: maxSets }, () => ({
+      p1: '',
+      p2: '',
+      tbP1: '',
+      tbP2: '',
+    })),
+  );
   const [date, setDate] = useState('');
   const [location, setLocation] = useState('');
   const [error, setError] = useState('');
 
-  // Determine how many sets are actually needed based on running score
-  const [p1Running, p2Running] = setValues.reduce(
-    ([p1, p2], val) => {
-      if (!val) return [p1, p2];
-      const opts =
-        thirdSetFormat === 'super_tiebreak'
-          ? SUPER_TB_OPTIONS
-          : isTennis
-            ? TENNIS_SET_OPTIONS
-            : PICKLEBALL_GAME_OPTIONS;
-      const opt = opts.find((o) => o.label === val);
-      if (!opt) return [p1, p2];
-      return opt.p1 > opt.p2 ? [p1 + 1, p2] : [p1, p2 + 1];
+  const handleSetChange = (idx, field, val) => {
+    setSets((prev) => {
+      const next = prev.map((s, i) => (i === idx ? { ...s, [field]: val } : s));
+      // Reset tiebreak if set score changed
+      if (field === 'p1' || field === 'p2') {
+        next[idx] = { ...next[idx], tbP1: '', tbP2: '' };
+      }
+      return next;
+    });
+    setError('');
+  };
+
+  // How many sets each player has won so far (for hiding unneeded rows)
+  const runningTotals = sets.reduce(
+    (acc, s, i) => {
+      const isSuperTb =
+        i === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
+      const valid = isTennis
+        ? isValidTennisSet(s.p1, s.p2, isSuperTb)
+        : isValidPickleballGame(s.p1, s.p2);
+      if (!valid) return acc;
+      const a = parseInt(s.p1, 10),
+        b = parseInt(s.p2, 10);
+      return [acc[0] + (a > b ? 1 : 0), acc[1] + (b > a ? 1 : 0)];
     },
     [0, 0],
   );
 
-  // Only show next set row if match isn't decided yet
-  const matchDecided = p1Running >= setsNeeded || p2Running >= setsNeeded;
-
-  const handleSetChange = (idx, val) => {
-    setSetValues((prev) => {
-      const n = [...prev];
-      n[idx] = val;
-      return n;
-    });
-    setTbValues((prev) => {
-      const n = [...prev];
-      n[idx] = '';
-      return n;
-    }); // reset TB on change
-    setError('');
-  };
-  const handleTbChange = (idx, val) => {
-    setTbValues((prev) => {
-      const n = [...prev];
-      n[idx] = val;
-      return n;
-    });
-  };
-
-  // ── Compute result ────────────────────────────────────────
+  // ── Compute final result ─────────────────────────────────
   const computeResult = () => {
-    const options = isTennis ? TENNIS_SET_OPTIONS : PICKLEBALL_GAME_OPTIONS;
-    const superTbOptions = SUPER_TB_OPTIONS;
-
     let p1SetsWon = 0,
       p2SetsWon = 0;
     let p1GamesTotal = 0,
@@ -279,25 +270,30 @@ function ScoreEntryModal({ match, onClose }) {
     const setScores = [];
 
     for (let i = 0; i < maxSets; i++) {
-      const val = setValues[i];
-      if (!val) break; // stop at first empty
-
-      const isDeciding =
+      const s = sets[i];
+      const isSuperTb =
         i === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
-      const opts = isDeciding ? superTbOptions : options;
-      const opt = opts.find((o) => o.label === val);
-      if (!opt) return null;
+      const valid = isTennis
+        ? isValidTennisSet(s.p1, s.p2, isSuperTb)
+        : isValidPickleballGame(s.p1, s.p2);
 
-      if (opt.p1 > opt.p2) p1SetsWon++;
+      if (!valid) {
+        // If match already decided, ignore trailing empty rows
+        if (p1SetsWon >= setsNeeded || p2SetsWon >= setsNeeded) break;
+        return null; // incomplete
+      }
+
+      const a = parseInt(s.p1, 10),
+        b = parseInt(s.p2, 10);
+      if (a > b) p1SetsWon++;
       else p2SetsWon++;
+      p1GamesTotal += a;
+      p2GamesTotal += b;
 
-      p1GamesTotal += opt.p1;
-      p2GamesTotal += opt.p2;
+      const tbScore =
+        s.tbP1 !== '' && s.tbP2 !== '' ? `${s.tbP1}–${s.tbP2}` : null;
+      setScores.push({ p1: a, p2: b, tiebreak: tbScore });
 
-      const tbScore = tbValues[i] || null;
-      setScores.push({ p1: opt.p1, p2: opt.p2, tiebreak: tbScore });
-
-      // Stop early if match is decided
       if (p1SetsWon >= setsNeeded || p2SetsWon >= setsNeeded) break;
     }
 
@@ -325,7 +321,7 @@ function ScoreEntryModal({ match, onClose }) {
 
   const handleSubmit = () => {
     if (!result) {
-      setError('Please complete all required set scores.');
+      setError('Please enter valid scores for all played sets.');
       return;
     }
     submitResult(match.id, result);
@@ -350,29 +346,25 @@ function ScoreEntryModal({ match, onClose }) {
           </div>
 
           <div className="set-rows">
-            {Array.from({ length: maxSets }).map((_, i) => {
-              // Hide sets that can't be reached yet
-              const prevDecided = (() => {
-                let p1 = 0,
-                  p2 = 0;
-                for (let j = 0; j < i; j++) {
-                  const val = setValues[j];
-                  if (!val) return false;
-                  const opts = isTennis
-                    ? TENNIS_SET_OPTIONS
-                    : PICKLEBALL_GAME_OPTIONS;
-                  const opt = opts.find((o) => o.label === val);
-                  if (!opt) return false;
-                  if (opt.p1 > opt.p2) p1++;
+            {sets.map((s, i) => {
+              // Hide this set row if the match was already decided by previous sets
+              let p1 = 0,
+                p2 = 0;
+              for (let j = 0; j < i; j++) {
+                const prev = sets[j];
+                const isSuperTb =
+                  j === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
+                const valid = isTennis
+                  ? isValidTennisSet(prev.p1, prev.p2, isSuperTb)
+                  : isValidPickleballGame(prev.p1, prev.p2);
+                if (valid) {
+                  const a = parseInt(prev.p1, 10),
+                    b = parseInt(prev.p2, 10);
+                  if (a > b) p1++;
                   else p2++;
-                  if (p1 >= setsNeeded || p2 >= setsNeeded) return true;
                 }
-                return false;
-              })();
-
-              if (prevDecided) return null;
-
-              const isDeciding = maxSets > 1 && i === maxSets - 1;
+              }
+              if (p1 >= setsNeeded || p2 >= setsNeeded) return null;
 
               return (
                 <SetScoreRow
@@ -380,11 +372,9 @@ function ScoreEntryModal({ match, onClose }) {
                   index={i}
                   sport={sport}
                   thirdSetFormat={thirdSetFormat}
-                  isDecidingSet={isDeciding}
-                  value={setValues[i]}
-                  tbValue={tbValues[i]}
-                  onChange={handleSetChange}
-                  onTbChange={handleTbChange}
+                  isDeciding={maxSets > 1 && i === maxSets - 1}
+                  setScore={s}
+                  onSetChange={handleSetChange}
                   p1Name={p1Name}
                   p2Name={p2Name}
                 />
