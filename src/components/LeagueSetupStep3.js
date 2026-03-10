@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import ThemeToggle from './shared/ThemeToggle';
 import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
 import { generateLeague } from '../utils/matchGenerator';
@@ -33,64 +33,122 @@ function getParticipantRating(p, isDoubles) {
   return p.ustaRating;
 }
 
-// ─── Settings Summary Card ────────────────────────────────
+// ─── Editable Settings Summary ────────────────────────────
 
-function SettingsSummary({ settings }) {
+function SettingsSummary({ settings, overrides, onOverride }) {
   const isDoubles = settings.singlesOrDoubles === 'doubles';
-
-  const rows = [
-    {
-      label: 'Sport',
-      value: (
-        <span className="summary-sport-value">
-          {getSportIcon(settings.sport, 14)}
-          {settings.sport.charAt(0).toUpperCase() + settings.sport.slice(1)}
-        </span>
-      ),
-    },
-    {
-      label: 'Format',
-      value: `${isDoubles ? 'Doubles' : 'Singles'} · ${FORMAT_LABELS[settings.format]}`,
-    },
-    { label: 'Rounds', value: settings.rounds },
-    { label: 'Challenge Window', value: `±${settings.challengeSpots} spots` },
-    {
-      label: 'Round Advance',
-      value: settings.autoAdvance ? 'Auto + Manual' : 'Manual only',
-    },
-  ];
 
   return (
     <div className="summary-card">
-      <div className="summary-card-title">League Settings</div>
+      <div className="summary-card-title">
+        League Settings
+        <span className="summary-edit-hint">editable</span>
+      </div>
       <div className="summary-rows">
-        {rows.map((r) => (
-          <div className="summary-row" key={r.label}>
-            <span className="summary-row-label">{r.label}</span>
-            <span className="summary-row-value">{r.value}</span>
+        <div className="summary-row">
+          <span className="summary-row-label">Sport</span>
+          <span className="summary-row-value">
+            <span className="summary-sport-value">
+              {getSportIcon(settings.sport, 14)}
+              {settings.sport.charAt(0).toUpperCase() + settings.sport.slice(1)}
+            </span>
+          </span>
+        </div>
+
+        <div className="summary-row">
+          <span className="summary-row-label">Format</span>
+          <span className="summary-row-value">
+            {isDoubles ? 'Doubles' : 'Singles'} ·{' '}
+            {FORMAT_LABELS[settings.format]}
+          </span>
+        </div>
+
+        {/* Editable: rounds */}
+        <div className="summary-row summary-row-edit">
+          <span className="summary-row-label">Rounds</span>
+          <div className="summary-inline-edit">
+            <button
+              className="edit-stepper"
+              onClick={() =>
+                onOverride(
+                  'rounds',
+                  Math.max(1, (overrides.rounds || settings.rounds) - 1),
+                )
+              }
+            >
+              −
+            </button>
+            <span className="edit-stepper-val">
+              {overrides.rounds ?? settings.rounds}
+            </span>
+            <button
+              className="edit-stepper"
+              onClick={() =>
+                onOverride(
+                  'rounds',
+                  Math.min(16, (overrides.rounds || settings.rounds) + 1),
+                )
+              }
+            >
+              +
+            </button>
           </div>
-        ))}
+        </div>
+
+        <div className="summary-row">
+          <span className="summary-row-label">Challenge Window</span>
+          <span className="summary-row-value">
+            ±{settings.challengeSpots} spots
+          </span>
+        </div>
+
+        <div className="summary-row">
+          <span className="summary-row-label">Round Advance</span>
+          <span className="summary-row-value">
+            {settings.autoAdvance ? 'Auto + Manual' : 'Manual only'}
+          </span>
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Roster Preview ───────────────────────────────────────
+// ─── Editable Roster Preview ──────────────────────────────
 
-function RosterPreview({ playerData, settings }) {
+function RosterPreview({ playerData, settings, overrides, onOverride }) {
   const isDoubles = settings.singlesOrDoubles === 'doubles';
-  const participants = isDoubles ? playerData.teams : playerData.players;
+  const allParticipants = isDoubles ? playerData.teams : playerData.players;
   const [expanded, setExpanded] = useState(false);
 
+  // Allow removing participants from the launch roster
+  const excluded = overrides.excludedIds || new Set();
+
+  const activeParticipants = allParticipants.filter((p) => !excluded.has(p.id));
+
   const PREVIEW_LIMIT = 5;
-  const shown = expanded ? participants : participants.slice(0, PREVIEW_LIMIT);
-  const remaining = participants.length - PREVIEW_LIMIT;
+  const shown = expanded
+    ? activeParticipants
+    : activeParticipants.slice(0, PREVIEW_LIMIT);
+  const remaining = activeParticipants.length - PREVIEW_LIMIT;
+
+  const toggleExclude = (id) => {
+    const next = new Set(excluded);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onOverride('excludedIds', next);
+  };
 
   return (
     <div className="summary-card">
       <div className="summary-card-title">
         Roster
-        <span className="label-count">{participants.length}</span>
+        <span className="label-count">{activeParticipants.length}</span>
+        {excluded.size > 0 && (
+          <span className="label-count label-count-warn">
+            {excluded.size} removed
+          </span>
+        )}
+        <span className="summary-edit-hint">click − to remove</span>
       </div>
       <div className="roster-list">
         {shown.map((p, i) => (
@@ -102,15 +160,44 @@ function RosterPreview({ playerData, settings }) {
             <span className="player-rating-badge">
               {getParticipantRating(p, isDoubles)}
             </span>
+            <button
+              className="roster-remove-btn"
+              onClick={() => toggleExclude(p.id)}
+              title="Remove from this league"
+            >
+              −
+            </button>
           </div>
         ))}
       </div>
+
+      {/* Show excluded players as re-addable */}
+      {excluded.size > 0 && (
+        <div className="roster-excluded">
+          {allParticipants
+            .filter((p) => excluded.has(p.id))
+            .map((p) => (
+              <div className="roster-excluded-row" key={p.id}>
+                <span className="roster-excluded-name">
+                  {getParticipantName(p, isDoubles)}
+                </span>
+                <button
+                  className="roster-readd-btn"
+                  onClick={() => toggleExclude(p.id)}
+                >
+                  + Add back
+                </button>
+              </div>
+            ))}
+        </div>
+      )}
+
       {!expanded && remaining > 0 && (
         <button className="btn-show-more" onClick={() => setExpanded(true)}>
           + {remaining} more
         </button>
       )}
-      {expanded && participants.length > PREVIEW_LIMIT && (
+      {expanded && activeParticipants.length > PREVIEW_LIMIT && (
         <button className="btn-show-more" onClick={() => setExpanded(false)}>
           Show less
         </button>
@@ -163,18 +250,53 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
   const isDoubles = settings.singlesOrDoubles === 'doubles';
   const [launching, setLaunching] = useState(false);
 
-  // Pre-generate Round 1 preview (full generation happens on launch)
-  const preview = React.useMemo(
-    () => generateLeague(settings, playerData),
-    [settings, playerData],
+  // Overrides: rounds, excludedIds
+  const [overrides, setOverrides] = useState({
+    rounds: settings.rounds,
+    excludedIds: new Set(),
+  });
+
+  const setOverride = (key, val) =>
+    setOverrides((prev) => ({ ...prev, [key]: val }));
+
+  // Effective settings with overrides applied
+  const effectiveSettings = {
+    ...settings,
+    rounds: overrides.rounds ?? settings.rounds,
+  };
+
+  // Effective playerData with exclusions applied
+  const effectivePlayerData = useMemo(() => {
+    const excluded = overrides.excludedIds || new Set();
+    return {
+      players: playerData.players.filter((p) => !excluded.has(p.id)),
+      teams: playerData.teams.filter((t) => !excluded.has(t.id)),
+    };
+  }, [playerData, overrides.excludedIds]);
+
+  const activeCount = isDoubles
+    ? effectivePlayerData.teams.length
+    : effectivePlayerData.players.length;
+  const canLaunch = activeCount >= 2;
+
+  // Preview — regenerates when effective data changes
+  const preview = useMemo(
+    () =>
+      canLaunch ? generateLeague(effectiveSettings, effectivePlayerData) : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      effectiveSettings.rounds,
+      effectivePlayerData.players.length,
+      effectivePlayerData.teams.length,
+    ],
   );
 
   const handleLaunch = () => {
+    if (!canLaunch) return;
     setLaunching(true);
-    // Small delay for the animation to feel intentional
     setTimeout(() => {
-      const leagueData = generateLeague(settings, playerData);
-      onLaunch(leagueData);
+      const leagueData = generateLeague(effectiveSettings, effectivePlayerData);
+      onLaunch(leagueData, effectiveSettings);
     }, 600);
   };
 
@@ -211,12 +333,29 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
 
         {/* Two-column summary grid */}
         <div className="review-grid">
-          <SettingsSummary settings={settings} />
-          <RosterPreview playerData={playerData} settings={settings} />
+          <SettingsSummary
+            settings={settings}
+            overrides={overrides}
+            onOverride={setOverride}
+          />
+          <RosterPreview
+            playerData={playerData}
+            settings={settings}
+            overrides={overrides}
+            onOverride={setOverride}
+          />
         </div>
 
         {/* Round 1 preview */}
-        <Round1Preview rounds={preview.rounds} isDoubles={isDoubles} />
+        {preview && (
+          <Round1Preview rounds={preview.rounds} isDoubles={isDoubles} />
+        )}
+
+        {!canLaunch && (
+          <div className="launch-warning">
+            ⚠ Need at least 2 {isDoubles ? 'teams' : 'players'} to launch.
+          </div>
+        )}
 
         {/* Ready notice */}
         <div className="launch-notice">
@@ -233,9 +372,8 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          Seeding is based on USTA rating. Matches are generated using
-          round-robin scheduling. Challenges can be issued from the Schedule
-          view after launch.
+          Seeding is based on USTA rating. Matches use round-robin scheduling.
+          Challenges can be issued from the Schedule view after launch.
         </div>
       </div>
 
@@ -247,12 +385,11 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
         <button
           className={`btn-next btn-launch ${launching ? 'btn-launching' : ''}`}
           onClick={handleLaunch}
-          disabled={launching}
+          disabled={launching || !canLaunch}
         >
           {launching ? (
             <>
-              <span className="launch-spinner" />
-              Generating League…
+              <span className="launch-spinner" /> Generating League…
             </>
           ) : (
             '🚀 Launch League'
