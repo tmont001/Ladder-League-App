@@ -102,20 +102,12 @@ function StandingsTab({ onChallenge = () => {}, onEnterScore = () => {} }) {
                   }
 
                   return (
-                    <>
-                      <button
-                        className="btn-small"
-                        onClick={() => onChallenge(p.id, defaultTarget)}
-                      >
-                        Challenge
-                      </button>
-                      <button
-                        className="btn-small"
-                        onClick={() => onEnterScore(p.id)}
-                      >
-                        Enter Score
-                      </button>
-                    </>
+                    <button
+                      className="btn-small"
+                      onClick={() => onChallenge(p.id, defaultTarget)}
+                    >
+                      Challenge
+                    </button>
                   );
                 })()}
               </div>

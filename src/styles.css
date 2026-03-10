@@ -1423,6 +1423,27 @@ input[type='range']::-webkit-slider-thumb {
   background: rgba(200, 245, 58, 0.14);
 }
 
+/* Small action buttons used in standings and match rows */
+.btn-small {
+  padding: 0.45rem 0.9rem;
+  background: transparent;
+  border: 1.5px solid var(--border-faint);
+  border-radius: 2px;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.btn-small:hover {
+  border-color: var(--border-mid);
+  color: var(--cream);
+  transform: translateY(-1px);
+}
+
 /* Round section */
 .round-section {
   display: flex;
