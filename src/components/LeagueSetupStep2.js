@@ -306,8 +306,8 @@ function SettingsSummary({ settings, overrides, onOverride }) {
 // ─── Round 1 preview (right panel) ────────────────────────
 
 function Round1Preview({ rounds, isDoubles }) {
-  const [expanded, setExpanded] = useState(false);
   if (!rounds?.length) return null;
+  const [expanded, setExpanded] = useState(false);
   const matches = rounds[0].matches;
   const LIMIT = 4;
   const shown = expanded ? matches : matches.slice(0, LIMIT);
