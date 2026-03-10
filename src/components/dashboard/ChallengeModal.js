@@ -1,9 +1,14 @@
 import Portal from '../shared/Portal';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { generateId, getParticipantName } from '../../utils/participants';
 
-function ChallengeModal({ onClose }) {
+function ChallengeModal({
+  onClose,
+  initialChallengerId = null,
+  initialChallengedId = null,
+  onCreated = () => {},
+}) {
   const {
     settings,
     isDoubles,
@@ -14,9 +19,17 @@ function ChallengeModal({ onClose }) {
   } = useLeague();
   const challengeSpots = settings.challengeSpots;
 
-  const [challengerId, setChallengerId] = useState('');
-  const [challengedId, setChallengedId] = useState('');
+  const [challengerId, setChallengerId] = useState(initialChallengerId || '');
+  const [challengedId, setChallengedId] = useState(initialChallengedId || '');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setChallengerId(initialChallengerId || '');
+  }, [initialChallengerId]);
+
+  useEffect(() => {
+    setChallengedId(initialChallengedId || '');
+  }, [initialChallengedId]);
 
   // Build a rank map from standings (rank 1 = best)
   const rankMap = {};
@@ -66,6 +79,31 @@ function ChallengeModal({ onClose }) {
     };
 
     addChallenge(challengeMatch);
+
+    // fire-and-forget send to backend outbox if configured
+    (async () => {
+      try {
+        const apiBase =
+          process.env.REACT_APP_API_URL || 'http://localhost:4001';
+        await fetch(`${apiBase}/send-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: [],
+            subject: `Challenge: ${challengeMatch.p1.name} → ${challengeMatch.p2.name}`,
+            body: `You have a new challenge from ${challengeMatch.p1.name} to ${challengeMatch.p2.name}.`,
+          }),
+        });
+      } catch (err) {
+        // ignore failures — outbox is non-blocking
+      }
+    })();
+
+    try {
+      onCreated(challengeMatch);
+    } catch (e) {
+      // swallow
+    }
     onClose();
   };
 

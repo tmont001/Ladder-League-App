@@ -8,7 +8,8 @@ import { useTheme } from '../../context/ThemeContext';
  * Applies the current theme class so CSS variables resolve correctly.
  */
 function Portal({ children }) {
-  const { isDark } = useTheme();
+  const theme = useTheme() || {};
+  const { isDark = false } = theme;
   const el = useRef(document.createElement('div'));
 
   useEffect(() => {

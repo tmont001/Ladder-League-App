@@ -1,8 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { getParticipantName } from '../../utils/participants';
-import ScoreEntryModal from './ScoreEntryModal';
-import ChallengeModal from './ChallengeModal';
 
 function StatusBadge({ status, type }) {
   const map = {
@@ -17,7 +15,7 @@ function StatusBadge({ status, type }) {
   return <span className={`status-badge ${cls}`}>{label}</span>;
 }
 
-function MatchCard({ match, onEnterScore, onResolve }) {
+function MatchCard({ match, onEnterScore, onResolve, highlight = false }) {
   const { isDoubles } = useLeague();
   const p1Name = getParticipantName(match.p1, isDoubles);
   const p2Name = getParticipantName(match.p2, isDoubles);
@@ -26,7 +24,8 @@ function MatchCard({ match, onEnterScore, onResolve }) {
 
   return (
     <div
-      className={`match-card ${isDone ? 'match-card-done' : ''} ${match.isBye ? 'match-card-bye' : ''}`}
+      id={`match-${match.id}`}
+      className={`match-card ${isDone ? 'match-card-done' : ''} ${match.isBye ? 'match-card-bye' : ''} ${highlight ? 'match-highlight' : ''}`}
     >
       <div className="match-card-left">
         <div className="match-players">
@@ -135,6 +134,7 @@ function RoundSection({ round, onEnterScore, onResolve }) {
             match={match}
             onEnterScore={onEnterScore}
             onResolve={onResolve}
+            highlight={match._highlight}
           />
         ))}
       </div>
@@ -142,40 +142,47 @@ function RoundSection({ round, onEnterScore, onResolve }) {
   );
 }
 
-function ScheduleTab() {
+function ScheduleTab({
+  onEnterScore,
+  onOpenChallenge,
+  highlightedMatchId = null,
+}) {
   const { rounds, resolveMatch } = useLeague();
-  const [scoreMatch, setScoreMatch] = useState(null);
-  const [showChallenge, setShowChallenge] = useState(false);
+
+  // Attach a temporary `_highlight` flag to matches for rendering
+  const roundsWithHighlight = rounds.map((r) => ({
+    ...r,
+    matches: r.matches.map((m) => ({
+      ...m,
+      _highlight: highlightedMatchId === m.id,
+    })),
+  }));
+
+  useEffect(() => {
+    if (!highlightedMatchId) return;
+    const el = document.getElementById(`match-${highlightedMatchId}`);
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add a transient pulse class (relies on CSS) — class already applied via match._highlight
+    }
+  }, [highlightedMatchId]);
 
   return (
     <div className="schedule-wrapper">
       <div className="schedule-toolbar">
-        <button
-          className="btn-challenge-open"
-          onClick={() => setShowChallenge(true)}
-        >
+        <button className="btn-challenge-open" onClick={onOpenChallenge}>
           + Issue Challenge
         </button>
       </div>
 
-      {rounds.map((round) => (
+      {roundsWithHighlight.map((round) => (
         <RoundSection
           key={round.roundNumber}
           round={round}
-          onEnterScore={setScoreMatch}
+          onEnterScore={onEnterScore}
           onResolve={resolveMatch}
         />
       ))}
-
-      {scoreMatch && (
-        <ScoreEntryModal
-          match={scoreMatch}
-          onClose={() => setScoreMatch(null)}
-        />
-      )}
-      {showChallenge && (
-        <ChallengeModal onClose={() => setShowChallenge(false)} />
-      )}
     </div>
   );
 }

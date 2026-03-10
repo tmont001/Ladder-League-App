@@ -19,8 +19,8 @@ function getRankBadgeClass(rank) {
   return 'rank-badge';
 }
 
-function StandingsTab() {
-  const { standings, isDoubles } = useLeague();
+function StandingsTab({ onChallenge = () => {}, onEnterScore = () => {} }) {
+  const { standings, isDoubles, settings } = useLeague();
 
   if (standings.length === 0) {
     return (
@@ -44,6 +44,7 @@ function StandingsTab() {
           <div className="col-stat">Sets L</div>
           <div className="col-stat">Games W</div>
           <div className="col-stat">Games L</div>
+          <div className="col-actions" />
         </div>
 
         {/* Rows */}
@@ -82,6 +83,42 @@ function StandingsTab() {
               <div className="col-stat">{entry.setsLost}</div>
               <div className="col-stat stat-highlight">{entry.gamesWon}</div>
               <div className="col-stat">{entry.gamesLost}</div>
+              <div className="col-actions">
+                {(() => {
+                  let defaultTarget = null;
+                  if (i > 0) {
+                    const maxLookup = Math.max(
+                      0,
+                      i - (settings.challengeSpots || 0),
+                    );
+                    for (let j = i - 1; j >= maxLookup; j--) {
+                      const candidate =
+                        standings[j] && standings[j].participant;
+                      if (candidate) {
+                        defaultTarget = candidate.id;
+                        break;
+                      }
+                    }
+                  }
+
+                  return (
+                    <>
+                      <button
+                        className="btn-small"
+                        onClick={() => onChallenge(p.id, defaultTarget)}
+                      >
+                        Challenge
+                      </button>
+                      <button
+                        className="btn-small"
+                        onClick={() => onEnterScore(p.id)}
+                      >
+                        Enter Score
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           );
         })}
