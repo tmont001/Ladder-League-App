@@ -11,6 +11,20 @@ const FORMAT_LABELS = {
   best_of_5: 'Best of 5',
 };
 
+const USTA_RATINGS = [
+  '2.0',
+  '2.5',
+  '3.0',
+  '3.5',
+  '4.0',
+  '4.5',
+  '5.0',
+  '5.5',
+  '6.0',
+  '6.5',
+  '7.0',
+];
+
 function getSportIcon(sport, size = 16) {
   return sport === 'tennis' ? (
     <TennisRacquetIcon size={size} color="currentColor" />
@@ -119,9 +133,12 @@ function RosterPreview({ playerData, settings, overrides, onOverride }) {
   const isDoubles = settings.singlesOrDoubles === 'doubles';
   const allParticipants = isDoubles ? playerData.teams : playerData.players;
   const [expanded, setExpanded] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editRating, setEditRating] = useState('3.5');
 
-  // Allow removing participants from the launch roster
   const excluded = overrides.excludedIds || new Set();
+  const editedMap = overrides.editedMap || {}; // id → { name, ustaRating }
 
   const activeParticipants = allParticipants.filter((p) => !excluded.has(p.id));
 
@@ -138,6 +155,35 @@ function RosterPreview({ playerData, settings, overrides, onOverride }) {
     onOverride('excludedIds', next);
   };
 
+  const startEdit = (p) => {
+    const current = editedMap[p.id] || p;
+    setEditingId(p.id);
+    setEditName(isDoubles ? '' : current.name || p.name);
+    setEditRating(isDoubles ? '' : current.ustaRating || p.ustaRating);
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const saveEdit = (p) => {
+    if (!isDoubles && !editName.trim()) return;
+    const next = {
+      ...editedMap,
+      [p.id]: isDoubles
+        ? {}
+        : { name: editName.trim(), ustaRating: editRating },
+    };
+    onOverride('editedMap', next);
+    setEditingId(null);
+  };
+
+  // Resolve a participant's display values (may be overridden)
+  const resolve = (p) => {
+    if (isDoubles) return p;
+    const edit = editedMap[p.id];
+    if (!edit) return p;
+    return { ...p, name: edit.name, ustaRating: edit.ustaRating };
+  };
+
   return (
     <div className="summary-card">
       <div className="summary-card-title">
@@ -148,30 +194,99 @@ function RosterPreview({ playerData, settings, overrides, onOverride }) {
             {excluded.size} removed
           </span>
         )}
-        <span className="summary-edit-hint">click − to remove</span>
-      </div>
-      <div className="roster-list">
-        {shown.map((p, i) => (
-          <div className="roster-row" key={p.id}>
-            <span className="roster-seed">{i + 1}</span>
-            <span className="roster-name">
-              {getParticipantName(p, isDoubles)}
-            </span>
-            <span className="player-rating-badge">
-              {getParticipantRating(p, isDoubles)}
-            </span>
-            <button
-              className="roster-remove-btn"
-              onClick={() => toggleExclude(p.id)}
-              title="Remove from this league"
-            >
-              −
-            </button>
-          </div>
-        ))}
+        <span className="summary-edit-hint">edit · remove</span>
       </div>
 
-      {/* Show excluded players as re-addable */}
+      <div className="roster-list">
+        {shown.map((p, i) => {
+          const resolved = resolve(p);
+          const isEditing = editingId === p.id;
+
+          return (
+            <div key={p.id}>
+              {isEditing && !isDoubles ? (
+                /* ── Inline edit form ── */
+                <div className="roster-edit-row">
+                  <span className="roster-seed">{i + 1}</span>
+                  <input
+                    className="roster-edit-input"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveEdit(p);
+                      if (e.key === 'Escape') cancelEdit();
+                    }}
+                    autoFocus
+                  />
+                  <select
+                    className="roster-edit-rating"
+                    value={editRating}
+                    onChange={(e) => setEditRating(e.target.value)}
+                  >
+                    {USTA_RATINGS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="roster-edit-save"
+                    onClick={() => saveEdit(p)}
+                  >
+                    ✓
+                  </button>
+                  <button className="roster-edit-cancel" onClick={cancelEdit}>
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                /* ── Normal display row ── */
+                <div className="roster-row">
+                  <span className="roster-seed">{i + 1}</span>
+                  <span className="roster-name">
+                    {getParticipantName(resolved, isDoubles)}
+                    {editedMap[p.id] && (
+                      <span className="roster-edited-tag">edited</span>
+                    )}
+                  </span>
+                  <span className="player-rating-badge">
+                    {getParticipantRating(resolved, isDoubles)}
+                  </span>
+                  {!isDoubles && (
+                    <button
+                      className="roster-action-btn roster-edit-btn"
+                      onClick={() => startEdit(p)}
+                      title="Edit player"
+                    >
+                      <svg
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                      >
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                  )}
+                  <button
+                    className="roster-action-btn roster-remove-btn"
+                    onClick={() => toggleExclude(p.id)}
+                    title="Remove from league"
+                  >
+                    −
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Excluded players — can be re-added */}
       {excluded.size > 0 && (
         <div className="roster-excluded">
           {allParticipants
@@ -249,37 +364,43 @@ function Round1Preview({ rounds, isDoubles }) {
 function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
   const isDoubles = settings.singlesOrDoubles === 'doubles';
   const [launching, setLaunching] = useState(false);
-
-  // Overrides: rounds, excludedIds
   const [overrides, setOverrides] = useState({
     rounds: settings.rounds,
     excludedIds: new Set(),
+    editedMap: {},
   });
 
   const setOverride = (key, val) =>
     setOverrides((prev) => ({ ...prev, [key]: val }));
 
-  // Effective settings with overrides applied
   const effectiveSettings = {
     ...settings,
     rounds: overrides.rounds ?? settings.rounds,
   };
 
-  // Effective playerData with exclusions applied
+  // Apply edits and exclusions to playerData
   const effectivePlayerData = useMemo(() => {
     const excluded = overrides.excludedIds || new Set();
+    const editedMap = overrides.editedMap || {};
+
+    const applyEdits = (players) =>
+      players
+        .filter((p) => !excluded.has(p.id))
+        .map((p) => (editedMap[p.id] ? { ...p, ...editedMap[p.id] } : p));
+
+    const applyTeamEdits = (teams) => teams.filter((t) => !excluded.has(t.id));
+
     return {
-      players: playerData.players.filter((p) => !excluded.has(p.id)),
-      teams: playerData.teams.filter((t) => !excluded.has(t.id)),
+      players: applyEdits(playerData.players),
+      teams: applyTeamEdits(playerData.teams),
     };
-  }, [playerData, overrides.excludedIds]);
+  }, [playerData, overrides.excludedIds, overrides.editedMap]);
 
   const activeCount = isDoubles
     ? effectivePlayerData.teams.length
     : effectivePlayerData.players.length;
   const canLaunch = activeCount >= 2;
 
-  // Preview — regenerates when effective data changes
   const preview = useMemo(
     () =>
       canLaunch ? generateLeague(effectiveSettings, effectivePlayerData) : null,
@@ -304,7 +425,6 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
     <div className="wizard-card wizard-card-wide">
       <div className="card-accent" />
 
-      {/* ── Header ── */}
       <div className="card-header">
         <div className="card-header-top">
           <div>
@@ -323,7 +443,6 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
       </div>
 
       <div className="card-body">
-        {/* League name banner */}
         <div className="league-name-banner">
           <span className="league-name-sport-icon">
             {getSportIcon(settings.sport, 20)}
@@ -331,7 +450,6 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
           <span className="league-name-text">{settings.leagueName}</span>
         </div>
 
-        {/* Two-column summary grid */}
         <div className="review-grid">
           <SettingsSummary
             settings={settings}
@@ -346,7 +464,6 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
           />
         </div>
 
-        {/* Round 1 preview */}
         {preview && (
           <Round1Preview rounds={preview.rounds} isDoubles={isDoubles} />
         )}
@@ -357,7 +474,6 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
           </div>
         )}
 
-        {/* Ready notice */}
         <div className="launch-notice">
           <svg
             width="15"
@@ -377,7 +493,6 @@ function LeagueSetupStep3({ settings, playerData, onLaunch, onBack }) {
         </div>
       </div>
 
-      {/* ── Footer ── */}
       <div className="card-footer card-footer-two">
         <button className="btn-back" onClick={onBack} disabled={launching}>
           ← Back
