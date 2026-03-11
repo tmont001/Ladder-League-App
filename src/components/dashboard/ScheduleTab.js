@@ -3,6 +3,7 @@ import { useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 import ScoreEntryModal from './ScoreEntryModal';
 import ChallengeModal from './ChallengeModal';
+import Portal from '../shared/Portal';
 
 function getParticipantName(p, isDoubles) {
   if (!p) return 'BYE';
@@ -41,7 +42,7 @@ function AutoConfirmCountdown({ isoString }) {
 
 function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
   const { isDoubles } = useLeague();
-  const { currentPlayer } = usePlayerIdentity();
+  const { currentPlayer, isAdmin } = usePlayerIdentity();
 
   const p1Name = getParticipantName(match.p1, isDoubles);
   const p2Name = getParticipantName(match.p2, isDoubles);
@@ -51,12 +52,16 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
   const isConfirmed = match.status === 'confirmed';
   const isDisputed = match.status === 'disputed';
 
-  // Can the current player confirm? They must be the opponent (not the submitter)
-  const canConfirm =
+  // A player can confirm if they're the opponent (not the submitter)
+  const isParticipant =
+    match.p1?.id === currentPlayer?.id || match.p2?.id === currentPlayer?.id;
+  const canConfirmAsPlayer =
     isAwaiting &&
     currentPlayer &&
     match.submittedBy !== currentPlayer.id &&
-    (match.p1?.id === currentPlayer.id || match.p2?.id === currentPlayer.id);
+    isParticipant;
+  // Admin can confirm any awaiting match
+  const canConfirm = canConfirmAsPlayer || (isAwaiting && isAdmin);
 
   return (
     <div
@@ -77,11 +82,11 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
               </span>
               {isConfirmed && match.result ? (
                 <span className="match-score-display">
-                  {match.result.setScores?.map((s, i) => (
+                  {match.result.setScores?.map((sc, i) => (
                     <span key={i} className="match-set-score">
-                      {s.p1}–{s.p2}
-                      {s.tiebreak && (
-                        <span className="match-tb-score"> ({s.tiebreak})</span>
+                      {sc.p1}–{sc.p2}
+                      {sc.tiebreak && (
+                        <span className="match-tb-score"> ({sc.tiebreak})</span>
                       )}
                     </span>
                   ))}
@@ -97,14 +102,12 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
             </>
           )}
         </div>
-
         {match.result?.date && (
           <div className="match-meta">
             {match.result.date}
             {match.result.location && <> · {match.result.location}</>}
           </div>
         )}
-
         {isAwaiting && (
           <div className="match-meta">
             Score submitted ·{' '}
@@ -155,7 +158,18 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
 
         {isDisputed && (
           <div className="match-actions">
-            <span className="match-disputed-label">⚠ Pending admin review</span>
+            {isAdmin ? (
+              <button
+                className="btn-score-entry"
+                onClick={() => onConfirm(match)}
+              >
+                Override &amp; Confirm
+              </button>
+            ) : (
+              <span className="match-disputed-label">
+                ⚠ Pending admin review
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -164,37 +178,32 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
 }
 
 function RoundSection({ round, onEnterScore, onConfirm, onDispute, onSkip }) {
-  const completedCount = round.matches.filter((m) =>
+  const completed = round.matches.filter((m) =>
     ['confirmed', 'skipped'].includes(m.status),
   ).length;
   const totalNonBye = round.matches.filter((m) => !m.isBye).length;
-
   return (
     <div className="round-section">
       <div className="round-header">
         <div className="round-title">
-          Round {round.roundNumber}
+          Round {round.roundNumber}{' '}
           {round.isComplete && (
             <span className="round-complete-badge">Complete</span>
           )}
         </div>
         <div className="round-progress-text">
-          {completedCount}/{totalNonBye} matches done
+          {completed}/{totalNonBye} matches done
         </div>
       </div>
-
       <div className="round-progress-bar">
         <div
           className="round-progress-fill"
           style={{
             width:
-              totalNonBye > 0
-                ? `${(completedCount / totalNonBye) * 100}%`
-                : '0%',
+              totalNonBye > 0 ? `${(completed / totalNonBye) * 100}%` : '0%',
           }}
         />
       </div>
-
       <div className="round-matches">
         {round.matches.map((match) => (
           <MatchCard
@@ -211,14 +220,11 @@ function RoundSection({ round, onEnterScore, onConfirm, onDispute, onSkip }) {
   );
 }
 
-// ── Dispute modal ─────────────────────────────────────────────
-
 function DisputeModal({ match, onClose }) {
-  const { isDoubles, disputeResult } = useLeague();
+  const { disputeResult } = useLeague();
   const { currentPlayer } = usePlayerIdentity();
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
-
   const handleSubmit = async () => {
     if (!reason.trim()) return;
     setLoading(true);
@@ -231,78 +237,73 @@ function DisputeModal({ match, onClose }) {
       setLoading(false);
     }
   };
-
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title">Dispute Score</div>
-          <button className="modal-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        <div className="modal-body">
-          <p
-            style={{
-              fontSize: '0.85rem',
-              color: 'var(--text)',
-              marginBottom: '0.5rem',
-            }}
-          >
-            Describe what's incorrect about the submitted score. An admin will
-            review within 24 hours.
-          </p>
-          <textarea
-            className="bulk-textarea"
-            placeholder="e.g. The score was 6-4, 3-6, 7-5, not 6-4, 6-3"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={3}
-          />
-        </div>
-        <div className="modal-footer">
-          <button className="btn-back" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="btn-next"
-            onClick={handleSubmit}
-            disabled={!reason.trim() || loading}
-          >
-            {loading ? 'Submitting…' : 'Submit Dispute'}
-          </button>
+    <Portal>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-title">Dispute Score</div>
+            <button className="modal-close" onClick={onClose}>
+              ✕
+            </button>
+          </div>
+          <div className="modal-body">
+            <p
+              style={{
+                fontSize: '0.85rem',
+                color: 'var(--text)',
+                marginBottom: '0.5rem',
+              }}
+            >
+              Describe what's incorrect. An admin will review within 24 hours.
+            </p>
+            <textarea
+              className="bulk-textarea"
+              placeholder="e.g. The score was 6-4, 3-6, 7-5, not 6-4, 6-3"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="modal-footer">
+            <button className="btn-back" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              className="btn-next"
+              onClick={handleSubmit}
+              disabled={!reason.trim() || loading}
+            >
+              {loading ? 'Submitting…' : 'Submit Dispute'}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }
 
-// ── Main ScheduleTab ──────────────────────────────────────────
-
 function ScheduleTab() {
-  const { rounds, confirmResult } = useLeague();
+  const { rounds, confirmResult, resolveMatch } = useLeague();
   const { currentPlayer } = usePlayerIdentity();
-
   const [scoreMatch, setScoreMatch] = useState(null);
   const [disputeMatch, setDisputeMatch] = useState(null);
   const [showChallenge, setShowChallenge] = useState(false);
 
   const handleConfirm = async (match) => {
-    if (!currentPlayer) return;
-    await confirmResult(match.id, currentPlayer.id);
+    await confirmResult(match.id, currentPlayer?.id || '__admin__');
+  };
+  const handleSkip = async (matchId) => {
+    await resolveMatch(matchId);
   };
 
   return (
     <div className="schedule-wrapper">
       <div className="schedule-toolbar">
-        <button
-          className="btn-challenge-open"
-          onClick={() => setShowChallenge(true)}
-        >
+        <button className="btn-outline" onClick={() => setShowChallenge(true)}>
           + Issue Challenge
         </button>
       </div>
-
       {rounds.map((round) => (
         <RoundSection
           key={round.roundNumber}
@@ -310,12 +311,9 @@ function ScheduleTab() {
           onEnterScore={setScoreMatch}
           onConfirm={handleConfirm}
           onDispute={setDisputeMatch}
-          onSkip={(id) => {
-            /* resolveMatch(id) */
-          }}
+          onSkip={handleSkip}
         />
       ))}
-
       {scoreMatch && (
         <ScoreEntryModal
           match={scoreMatch}

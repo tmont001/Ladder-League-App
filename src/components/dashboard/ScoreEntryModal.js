@@ -1,5 +1,5 @@
 import Portal from '../shared/Portal';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 
@@ -60,6 +60,11 @@ function getSetCount(format) {
   if (format === 'best_of_3') return 3;
   if (format === 'best_of_5') return 5;
   return 3;
+}
+
+// For best_of_1, you need 1 set. For best_of_3, you need 2. For best_of_5, you need 3.
+function getSetsNeeded(maxSets) {
+  return Math.ceil(maxSets / 2);
 }
 
 function getParticipantName(p, isDoubles) {
@@ -218,10 +223,10 @@ function ScoreEntryModal({ match, onClose }) {
   const thirdSetFormat = settings.thirdSetFormat || 'full_set';
   const isTennis = sport === 'tennis';
   const maxSets = getSetCount(format);
-  const setsNeeded = Math.ceil(maxSets / 2);
+  const setsNeeded = getSetsNeeded(maxSets);
 
-  const p1Name = getParticipantName(match.p1, isDoubles);
-  const p2Name = getParticipantName(match.p2, isDoubles);
+  const p1Name = match.p1 ? getParticipantName(match.p1, isDoubles) : '?';
+  const p2Name = match.p2 ? getParticipantName(match.p2, isDoubles) : '?';
 
   // Each set: { p1, p2, tbP1, tbP2 }
   const [sets, setSets] = useState(
@@ -265,7 +270,9 @@ function ScoreEntryModal({ match, onClose }) {
   );
 
   // ── Compute final result ─────────────────────────────────
-  const computeResult = () => {
+  const result = useMemo(() => {
+    if (!match.p1 || !match.p2) return null;
+
     let p1SetsWon = 0,
       p2SetsWon = 0;
     let p1GamesTotal = 0,
@@ -274,16 +281,16 @@ function ScoreEntryModal({ match, onClose }) {
 
     for (let i = 0; i < maxSets; i++) {
       const s = sets[i];
+      // Super tiebreak only applies on the deciding set of a multi-set match
       const isSuperTb =
-        i === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
+        maxSets > 1 && i === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
       const valid = isTennis
         ? isValidTennisSet(s.p1, s.p2, isSuperTb)
         : isValidPickleballGame(s.p1, s.p2);
 
       if (!valid) {
-        // If match already decided, ignore trailing empty rows
         if (p1SetsWon >= setsNeeded || p2SetsWon >= setsNeeded) break;
-        return null; // incomplete
+        return null;
       }
 
       const a = parseInt(s.p1, 10),
@@ -301,8 +308,8 @@ function ScoreEntryModal({ match, onClose }) {
     }
 
     if (p1SetsWon < setsNeeded && p2SetsWon < setsNeeded) return null;
-    const winnerId = p1SetsWon >= setsNeeded ? match.p1.id : match.p2.id;
 
+    const winnerId = p1SetsWon >= setsNeeded ? match.p1.id : match.p2.id;
     return {
       winnerId,
       p1Sets: p1SetsWon,
@@ -313,11 +320,11 @@ function ScoreEntryModal({ match, onClose }) {
       date: date || null,
       location: location || null,
     };
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sets, date, location]);
 
-  const result = computeResult();
   const winnerName = result
-    ? result.winnerId === match.p1.id
+    ? result.winnerId === match.p1?.id
       ? p1Name
       : p2Name
     : null;
@@ -366,7 +373,9 @@ function ScoreEntryModal({ match, onClose }) {
                 for (let j = 0; j < i; j++) {
                   const prev = sets[j];
                   const isSuperTb =
-                    j === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
+                    maxSets > 1 &&
+                    j === maxSets - 1 &&
+                    thirdSetFormat === 'super_tiebreak';
                   const valid = isTennis
                     ? isValidTennisSet(prev.p1, prev.p2, isSuperTb)
                     : isValidPickleballGame(prev.p1, prev.p2);

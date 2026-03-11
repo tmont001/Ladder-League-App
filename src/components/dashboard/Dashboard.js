@@ -1,4 +1,3 @@
-// src/components/dashboard/Dashboard.js
 import React, { useState, useEffect } from 'react';
 import { LeagueProvider, useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
@@ -8,7 +7,9 @@ import { TennisRacquetIcon, PickleballPaddleIcon } from '../SportIcons';
 import StandingsTab from './StandingsTab';
 import ScheduleTab from './ScheduleTab';
 import StatsTab from './StatsTab';
+import MessengerTab from './MessengerTab';
 import PlayersPanel from './PlayersPanel';
+import SettingsModal from './SettingsModal';
 
 const TABS = [
   {
@@ -72,22 +73,34 @@ const TABS = [
       </svg>
     ),
   },
+  {
+    id: 'messages',
+    label: 'Messages',
+    icon: (
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      >
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+  },
 ];
-
-// ── Notification bell ─────────────────────────────────────────
 
 function NotificationBell() {
   const { unreadCount, notifications, readAllNotifications } = useLeague();
   const { currentPlayer } = usePlayerIdentity();
   const [open, setOpen] = useState(false);
-
   const handleOpen = () => {
     setOpen((v) => !v);
-    if (!open && unreadCount > 0 && currentPlayer) {
+    if (!open && unreadCount > 0 && currentPlayer)
       readAllNotifications(currentPlayer.id);
-    }
   };
-
   return (
     <div className="notif-bell-wrap">
       <button
@@ -113,7 +126,6 @@ function NotificationBell() {
           </span>
         )}
       </button>
-
       {open && (
         <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
           <div className="notif-dropdown-header">Notifications</div>
@@ -147,13 +159,10 @@ function formatTimeAgo(iso) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-// ── Player chip (top bar) ─────────────────────────────────────
-
 function PlayerChip() {
   const { currentPlayer, logout } = usePlayerIdentity();
   const [showMenu, setShowMenu] = useState(false);
   if (!currentPlayer) return null;
-
   return (
     <div className="player-chip-wrap">
       <button className="player-chip" onClick={() => setShowMenu((v) => !v)}>
@@ -179,25 +188,20 @@ function PlayerChip() {
   );
 }
 
-// ── Dashboard content (shown after identity confirmed) ────────
-
-function DashboardContent() {
+function DashboardContent({ onSettingsSave }) {
   const { settings, rounds, currentRoundNumber, loadNotifications } =
     useLeague();
   const { currentPlayer, isAdmin } = usePlayerIdentity();
   const [activeTab, setActiveTab] = useState('standings');
   const [showPlayers, setShowPlayers] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
-  // Load notifications when player identity is known
   useEffect(() => {
-    if (currentPlayer?.id) {
-      loadNotifications(currentPlayer.id);
-    }
+    if (currentPlayer?.id) loadNotifications(currentPlayer.id);
   }, [currentPlayer?.id, loadNotifications]);
 
   const SportIcon =
     settings.sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
-  const totalCompleted = rounds.filter((r) => r.isComplete).length;
 
   return (
     <div className="dashboard">
@@ -220,26 +224,44 @@ function DashboardContent() {
         </div>
         <div className="dashboard-topbar-right">
           {isAdmin && (
-            <button
-              className="btn-players-panel"
-              onClick={() => setShowPlayers(true)}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
+            <>
+              <button className="btn-sm" onClick={() => setShowPlayers(true)}>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                Players
+              </button>
+              <button
+                className="btn-sm"
+                onClick={() => setShowSettings(true)}
+                title="League Settings"
               >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              Players
-            </button>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Settings
+              </button>
+            </>
           )}
           <NotificationBell />
           <PlayerChip />
@@ -248,8 +270,15 @@ function DashboardContent() {
       </div>
 
       {showPlayers && <PlayersPanel onClose={() => setShowPlayers(false)} />}
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onSave={onSettingsSave}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
 
-      {/* ── Progress strip ── */}
+      {/* Progress strip */}
       <div className="dashboard-progress-strip">
         {rounds.map((r) => (
           <div
@@ -260,7 +289,7 @@ function DashboardContent() {
         ))}
       </div>
 
-      {/* ── Nav Tabs ── */}
+      {/* Nav Tabs */}
       <div className="dashboard-nav">
         {TABS.map((tab) => (
           <button
@@ -274,44 +303,38 @@ function DashboardContent() {
         ))}
       </div>
 
-      {/* ── Tab Content ── */}
+      {/* Tab Content */}
       <div className="dashboard-content">
         {activeTab === 'standings' && <StandingsTab />}
         {activeTab === 'schedule' && <ScheduleTab />}
         {activeTab === 'stats' && <StatsTab />}
+        {activeTab === 'messages' && <MessengerTab />}
       </div>
     </div>
   );
 }
 
-// ── Root Dashboard — handles identity gate ────────────────────
-
-function DashboardInner() {
+function DashboardInner({ onSettingsSave }) {
   const { currentPlayer, loading } = usePlayerIdentity();
   const { settings } = useLeague();
-
-  if (loading) {
+  if (loading)
     return (
       <div className="dashboard-loading">
         <div className="loading-spinner" />
         <div className="loading-text">Loading league…</div>
       </div>
     );
-  }
-
-  if (!currentPlayer) {
+  if (!currentPlayer)
     return (
       <PlayerPicker leagueName={settings?.leagueName} sport={settings?.sport} />
     );
-  }
-
-  return <DashboardContent />;
+  return <DashboardContent onSettingsSave={onSettingsSave} />;
 }
 
-function Dashboard({ settings, leagueData }) {
+function Dashboard({ settings, leagueData, onSettingsSave }) {
   return (
     <LeagueProvider settings={settings} initialLeagueData={leagueData}>
-      <DashboardInner />
+      <DashboardInner onSettingsSave={onSettingsSave} />
     </LeagueProvider>
   );
 }

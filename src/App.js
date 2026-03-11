@@ -161,7 +161,13 @@ function AppContent() {
           isOrganizer={isOrganizerSession}
           initialPlayer={joinedPlayer}
         >
-          <Dashboard settings={activeSettings} leagueData={leagueData} />
+          <Dashboard
+            settings={activeSettings}
+            leagueData={leagueData}
+            onSettingsSave={(updated) =>
+              setEffectiveSettings((prev) => ({ ...prev, ...updated }))
+            }
+          />
         </PlayerIdentityProvider>
       )}
     </div>
