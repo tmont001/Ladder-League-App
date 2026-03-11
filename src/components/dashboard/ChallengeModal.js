@@ -1,14 +1,12 @@
 import Portal from '../shared/Portal';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
-import { generateId, getParticipantName } from '../../utils/participants';
 
-function ChallengeModal({
-  onClose,
-  initialChallengerId = null,
-  initialChallengedId = null,
-  onCreated = () => {},
-}) {
+function getParticipantName(p, isDoubles) {
+  return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
+}
+
+function ChallengeModal({ onClose }) {
   const {
     settings,
     isDoubles,
@@ -17,94 +15,43 @@ function ChallengeModal({
     currentRoundNumber,
     addChallenge,
   } = useLeague();
-  const challengeSpots = settings.challengeSpots;
+  const challengeSpots = settings.challengeSpots || 2;
 
-  const [challengerId, setChallengerId] = useState(initialChallengerId || '');
-  const [challengedId, setChallengedId] = useState(initialChallengedId || '');
+  const [challengerId, setChallengerId] = useState('');
+  const [challengedId, setChallengedId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    setChallengerId(initialChallengerId || '');
-  }, [initialChallengerId]);
-
-  useEffect(() => {
-    setChallengedId(initialChallengedId || '');
-  }, [initialChallengedId]);
-
-  // Build a rank map from standings (rank 1 = best)
   const rankMap = {};
   standings.forEach((s, i) => {
     rankMap[s.participant.id] = i + 1;
   });
 
-  // Valid challengers: any participant
-  const challengers = participants;
-
-  // Valid targets: participants ranked above challenger within the window
   const validTargets = challengerId
     ? participants.filter((p) => {
         if (p.id === challengerId) return false;
-        const challengerRank = rankMap[challengerId] ?? 9999;
-        const targetRank = rankMap[p.id] ?? 9999;
-        return (
-          targetRank < challengerRank &&
-          challengerRank - targetRank <= challengeSpots
-        );
+        const cRank = rankMap[challengerId] ?? 9999;
+        const tRank = rankMap[p.id] ?? 9999;
+        return tRank < cRank && cRank - tRank <= challengeSpots;
       })
     : [];
 
-  const handleChallenger = (id) => {
-    setChallengerId(id);
-    setChallengedId('');
-    setError('');
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!challengerId || !challengedId) {
-      setError('Please select both a challenger and a target.');
+      setError('Select both a challenger and a target.');
       return;
     }
     const challenger = participants.find((p) => p.id === challengerId);
     const challenged = participants.find((p) => p.id === challengedId);
-
-    const challengeMatch = {
-      id: generateId(),
-      round: currentRoundNumber,
-      type: 'challenge',
-      isBye: false,
-      p1: challenger,
-      p2: challenged,
-      status: 'pending',
-      result: null,
-    };
-
-    addChallenge(challengeMatch);
-
-    // fire-and-forget send to backend outbox if configured
-    (async () => {
-      try {
-        const apiBase =
-          process.env.REACT_APP_API_URL || 'http://localhost:4001';
-        await fetch(`${apiBase}/send-email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: [],
-            subject: `Challenge: ${challengeMatch.p1.name} → ${challengeMatch.p2.name}`,
-            body: `You have a new challenge from ${challengeMatch.p1.name} to ${challengeMatch.p2.name}.`,
-          }),
-        });
-      } catch (err) {
-        // ignore failures — outbox is non-blocking
-      }
-    })();
-
+    setSubmitting(true);
     try {
-      onCreated(challengeMatch);
-    } catch (e) {
-      // swallow
+      await addChallenge(challenger, challenged);
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Failed to create challenge.');
+    } finally {
+      setSubmitting(false);
     }
-    onClose();
   };
 
   return (
@@ -129,10 +76,14 @@ function ChallengeModal({
               <label>Challenger</label>
               <select
                 value={challengerId}
-                onChange={(e) => handleChallenger(e.target.value)}
+                onChange={(e) => {
+                  setChallengerId(e.target.value);
+                  setChallengedId('');
+                  setError('');
+                }}
               >
                 <option value="">Select challenger…</option>
-                {challengers.map((p) => (
+                {participants.map((p) => (
                   <option key={p.id} value={p.id}>
                     #{rankMap[p.id] ?? '—'} {getParticipantName(p, isDoubles)}
                   </option>
@@ -153,7 +104,7 @@ function ChallengeModal({
                 <option value="">
                   {challengerId
                     ? validTargets.length === 0
-                      ? 'No eligible targets (already at top or window empty)'
+                      ? 'No eligible targets'
                       : 'Select opponent…'
                     : 'Select challenger first'}
                 </option>
@@ -181,9 +132,9 @@ function ChallengeModal({
             <button
               className="btn-next"
               onClick={handleSubmit}
-              disabled={!challengerId || !challengedId}
+              disabled={!challengerId || !challengedId || submitting}
             >
-              Confirm Challenge
+              {submitting ? 'Saving…' : 'Confirm Challenge'}
             </button>
           </div>
         </div>

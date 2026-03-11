@@ -3,11 +3,13 @@ Ladder League — Local Setup
 Minimal instructions to run the API and frontend locally.
 
 Prerequisites
+
 - Node.js (16+)
 - npm
 - PostgreSQL / Supabase (optional; needed to run migrations)
 
 Quick start
+
 1. Install dependencies
 
 ```bash
@@ -23,6 +25,7 @@ DATABASE_URL=postgres://user:pass@host:5432/dbname
 3. Run the DB migration (choose one):
 
 - Using psql (quick):
+
 ```bash
 psql "$DATABASE_URL" -f supabase/migrations/001_create_ladder_schema.sql
 ```
@@ -45,6 +48,7 @@ npm start
 ```
 
 Background jobs
+
 - Expire challenges (run periodically):
 
 ```bash
@@ -58,11 +62,12 @@ node backend/jobs/autoApproveMatchesJob.js
 ```
 
 Notes
+
 - The API expects a `DATABASE_URL` env var.
 - Email delivery is stubbed to `outbox_emails`; integrate SendGrid/Mailgun later.
 - Movement rules, settings, and seeds live in `league_settings` (JSONB). Default settings are provided in the migration comments.
 
 Next steps (suggested)
+
 - Wire frontend flows to the API endpoints in `/api/*`.
 - Implement notifications and background worker scheduling (cron or serverless scheduled functions).
-

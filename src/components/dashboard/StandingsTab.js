@@ -1,6 +1,9 @@
 import React from 'react';
 import { useLeague } from '../../context/LeagueContext';
-import { getParticipantName } from '../../utils/participants';
+
+function getParticipantName(p, isDoubles) {
+  return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
+}
 
 function getParticipantRating(p, isDoubles) {
   if (isDoubles) {
@@ -19,8 +22,8 @@ function getRankBadgeClass(rank) {
   return 'rank-badge';
 }
 
-function StandingsTab({ onChallenge = () => {}, onEnterScore = () => {} }) {
-  const { standings, isDoubles, settings } = useLeague();
+function StandingsTab() {
+  const { standings, isDoubles } = useLeague();
 
   if (standings.length === 0) {
     return (
@@ -44,7 +47,6 @@ function StandingsTab({ onChallenge = () => {}, onEnterScore = () => {} }) {
           <div className="col-stat">Sets L</div>
           <div className="col-stat">Games W</div>
           <div className="col-stat">Games L</div>
-          <div className="col-actions" />
         </div>
 
         {/* Rows */}
@@ -83,34 +85,6 @@ function StandingsTab({ onChallenge = () => {}, onEnterScore = () => {} }) {
               <div className="col-stat">{entry.setsLost}</div>
               <div className="col-stat stat-highlight">{entry.gamesWon}</div>
               <div className="col-stat">{entry.gamesLost}</div>
-              <div className="col-actions">
-                {(() => {
-                  let defaultTarget = null;
-                  if (i > 0) {
-                    const maxLookup = Math.max(
-                      0,
-                      i - (settings.challengeSpots || 0),
-                    );
-                    for (let j = i - 1; j >= maxLookup; j--) {
-                      const candidate =
-                        standings[j] && standings[j].participant;
-                      if (candidate) {
-                        defaultTarget = candidate.id;
-                        break;
-                      }
-                    }
-                  }
-
-                  return (
-                    <button
-                      className="btn-small"
-                      onClick={() => onChallenge(p.id, defaultTarget)}
-                    >
-                      Challenge
-                    </button>
-                  );
-                })()}
-              </div>
             </div>
           );
         })}

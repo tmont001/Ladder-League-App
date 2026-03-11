@@ -1,11 +1,11 @@
 // src/App.js
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { PlayerIdentityProvider } from './context/PlayerIdentityContext';
 import LeagueSetupStep1 from './components/LeagueSetupStep1';
 import LeagueSetupStep2 from './components/LeagueSetupStep2';
+import LaunchCodesScreen from './components/LaunchCodesScreen';
 import Dashboard from './components/dashboard/Dashboard';
-import PlayerPicker from './components/PlayerPicker';
 import {
   createLeague,
   createPlayers,
@@ -13,9 +13,13 @@ import {
   createMatches,
   saveInitialRankings,
 } from './lib/db';
-import { getActiveLeagueId, setActiveLeagueId, fetchLeague } from './lib/db';
-import { fetchLeague as dbFetchLeague } from './lib/db';
-import { getStoredToken } from './lib/session';
+import { setActiveLeagueId, setOrganizer } from './lib/session';
+
+// Steps:
+//   1 → League settings
+//   2 → Add players
+//   3 → Launch codes screen (organizer saves/shares codes)
+//   4 → Dashboard
 
 function AppContent() {
   const [step, setStep] = useState(1);
@@ -29,64 +33,72 @@ function AppContent() {
     setStep(2);
   };
 
-  // Called by Step2 when the user confirms launch
   const handleLaunch = async (generatedLeague, finalSettings) => {
     setLaunching(true);
     try {
-      // 1. Persist league to DB
+      // ── Persist to Supabase ────────────────────────────────
       const dbLeague = await createLeague(finalSettings);
       const leagueId = dbLeague.id;
 
-      // 2. Persist players (first player created is admin)
-      const players = generatedLeague.seededParticipants;
       const dbPlayers = await createPlayers(
         leagueId,
-        players.map((p, i) => ({ ...p, isAdmin: i === 0 })),
+        generatedLeague.seededParticipants.map((p) => ({
+          ...p,
+          isAdmin: false,
+        })),
       );
 
-      // 3. If doubles, persist teams
-      let dbTeams = [];
       if (
         finalSettings.singlesOrDoubles === 'doubles' &&
         generatedLeague.seededParticipants[0]?.players
       ) {
-        dbTeams = await createTeams(
-          leagueId,
-          generatedLeague.seededParticipants,
-        );
+        await createTeams(leagueId, generatedLeague.seededParticipants);
       }
 
-      // 4. Persist matches
-      const matchRows = generatedLeague.matches.map((m) => ({
-        ...m,
-        p1_player_id: m.p1?.id || null,
-        p2_player_id: m.p2?.id || null,
-      }));
-      await createMatches(leagueId, matchRows);
+      await createMatches(
+        leagueId,
+        generatedLeague.matches.map((m) => ({
+          ...m,
+          p1_player_id: m.p1?.id || null,
+          p2_player_id: m.p2?.id || null,
+        })),
+      );
 
-      // 5. Save initial rankings
       await saveInitialRankings(
         leagueId,
         dbPlayers,
         finalSettings.singlesOrDoubles === 'doubles',
       );
 
-      // 6. Save active league to localStorage
+      // Mark this browser as the organizer for this league
       setActiveLeagueId(leagueId);
+      setOrganizer(leagueId);
 
-      const settingsWithId = { ...finalSettings, id: leagueId };
-      setEffectiveSettings(settingsWithId);
+      setEffectiveSettings({ ...finalSettings, id: leagueId });
       setLeagueData({ ...generatedLeague, seededParticipants: dbPlayers });
-      setStep(3);
     } catch (err) {
-      console.error('[App] launch error:', err.message);
-      // Fallback: run in-memory without DB
-      setEffectiveSettings(finalSettings);
-      setLeagueData(generatedLeague);
-      setStep(3);
-    } finally {
-      setLaunching(false);
+      // ── In-memory fallback (no DB) ─────────────────────────
+      console.warn(
+        '[App] Supabase unavailable, running in-memory:',
+        err.message,
+      );
+
+      const participants = generatedLeague.seededParticipants.map((p) => ({
+        ...p,
+        sessionToken: p.sessionToken || `local-${p.id}`,
+        role: 'player',
+      }));
+
+      setEffectiveSettings({ ...finalSettings, id: `local-${Date.now()}` });
+      setLeagueData({ ...generatedLeague, seededParticipants: participants });
     }
+
+    setLaunching(false);
+    setStep(3); // → codes screen
+  };
+
+  const handleEnterDashboard = () => {
+    setStep(4);
   };
 
   const activeSettings = effectiveSettings || leagueSettings;
@@ -99,6 +111,7 @@ function AppContent() {
           initialSettings={leagueSettings}
         />
       )}
+
       {step === 2 && (
         <LeagueSetupStep2
           settings={leagueSettings}
@@ -107,8 +120,22 @@ function AppContent() {
           externalLaunching={launching}
         />
       )}
-      {step === 3 && (
-        <PlayerIdentityProvider leagueId={activeSettings?.id}>
+
+      {step === 3 && leagueData && (
+        <LaunchCodesScreen
+          leagueName={activeSettings?.leagueName}
+          participants={leagueData.seededParticipants}
+          isDoubles={activeSettings?.singlesOrDoubles === 'doubles'}
+          onEnterDashboard={handleEnterDashboard}
+        />
+      )}
+
+      {step === 4 && (
+        // isOrganizer=true → Dashboard skips PlayerPicker, shows admin controls
+        <PlayerIdentityProvider
+          leagueId={activeSettings?.id}
+          isOrganizer={true}
+        >
           <Dashboard settings={activeSettings} leagueData={leagueData} />
         </PlayerIdentityProvider>
       )}

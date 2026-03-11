@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+// src/components/dashboard/Dashboard.js
+import React, { useState, useEffect } from 'react';
 import { LeagueProvider, useLeague } from '../../context/LeagueContext';
+import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 import ThemeToggle from '../shared/ThemeToggle';
+import PlayerPicker from '../PlayerPicker';
 import { TennisRacquetIcon, PickleballPaddleIcon } from '../SportIcons';
 import StandingsTab from './StandingsTab';
 import ScheduleTab from './ScheduleTab';
 import StatsTab from './StatsTab';
-import ChallengeModal from './ChallengeModal';
-import ScoreEntryModal from './ScoreEntryModal';
-import AdhocMatchModal from './AdhocMatchModal';
+import PlayersPanel from './PlayersPanel';
 
 const TABS = [
   {
@@ -73,16 +74,126 @@ const TABS = [
   },
 ];
 
+// ── Notification bell ─────────────────────────────────────────
+
+function NotificationBell() {
+  const { unreadCount, notifications, readAllNotifications } = useLeague();
+  const { currentPlayer } = usePlayerIdentity();
+  const [open, setOpen] = useState(false);
+
+  const handleOpen = () => {
+    setOpen((v) => !v);
+    if (!open && unreadCount > 0 && currentPlayer) {
+      readAllNotifications(currentPlayer.id);
+    }
+  };
+
+  return (
+    <div className="notif-bell-wrap">
+      <button
+        className="notif-bell-btn"
+        onClick={handleOpen}
+        aria-label="Notifications"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+        {unreadCount > 0 && (
+          <span className="notif-badge">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
+          <div className="notif-dropdown-header">Notifications</div>
+          {notifications.length === 0 ? (
+            <div className="notif-empty">Nothing new</div>
+          ) : (
+            notifications.slice(0, 10).map((n) => (
+              <div
+                key={n.id}
+                className={`notif-item ${n.read ? 'notif-read' : 'notif-unread'}`}
+              >
+                <div className="notif-message">{n.message}</div>
+                <div className="notif-time">{formatTimeAgo(n.created_at)}</div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatTimeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+// ── Player chip (top bar) ─────────────────────────────────────
+
+function PlayerChip() {
+  const { currentPlayer, logout } = usePlayerIdentity();
+  const [showMenu, setShowMenu] = useState(false);
+  if (!currentPlayer) return null;
+
+  return (
+    <div className="player-chip-wrap">
+      <button className="player-chip" onClick={() => setShowMenu((v) => !v)}>
+        <span className="player-chip-avatar">
+          {currentPlayer.name.charAt(0).toUpperCase()}
+        </span>
+        <span className="player-chip-name">
+          {currentPlayer.name.split(' ')[0]}
+        </span>
+      </button>
+      {showMenu && (
+        <div className="player-chip-menu">
+          <div className="player-chip-fullname">{currentPlayer.name}</div>
+          {currentPlayer.role === 'admin' && (
+            <div className="player-chip-role">Admin</div>
+          )}
+          <button className="player-chip-logout" onClick={logout}>
+            Switch Player
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Dashboard content (shown after identity confirmed) ────────
+
 function DashboardContent() {
-  const { settings, rounds, currentRoundNumber } = useLeague();
+  const { settings, rounds, currentRoundNumber, loadNotifications } =
+    useLeague();
+  const { currentPlayer, isAdmin } = usePlayerIdentity();
   const [activeTab, setActiveTab] = useState('standings');
-  const [scoreMatch, setScoreMatch] = useState(null);
-  const [showChallenge, setShowChallenge] = useState(false);
-  const [initialChallengerId, setInitialChallengerId] = useState(null);
-  const [initialChallengedId, setInitialChallengedId] = useState(null);
-  const [highlightedMatchId, setHighlightedMatchId] = useState(null);
-  const [showAdhocMatch, setShowAdhocMatch] = useState(false);
-  const [adhocStarterId, setAdhocStarterId] = useState(null);
+  const [showPlayers, setShowPlayers] = useState(false);
+
+  // Load notifications when player identity is known
+  useEffect(() => {
+    if (currentPlayer?.id) {
+      loadNotifications(currentPlayer.id);
+    }
+  }, [currentPlayer?.id, loadNotifications]);
 
   const SportIcon =
     settings.sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
@@ -107,8 +218,36 @@ function DashboardContent() {
             </div>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="dashboard-topbar-right">
+          {isAdmin && (
+            <button
+              className="btn-players-panel"
+              onClick={() => setShowPlayers(true)}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              Players
+            </button>
+          )}
+          <NotificationBell />
+          <PlayerChip />
+          <ThemeToggle />
+        </div>
       </div>
+
+      {showPlayers && <PlayersPanel onClose={() => setShowPlayers(false)} />}
 
       {/* ── Progress strip ── */}
       <div className="dashboard-progress-strip">
@@ -137,94 +276,42 @@ function DashboardContent() {
 
       {/* ── Tab Content ── */}
       <div className="dashboard-content">
-        {activeTab === 'standings' && (
-          <StandingsTab
-            onChallenge={(participantId, defaultTargetId) => {
-              setInitialChallengerId(participantId);
-              setInitialChallengedId(defaultTargetId || null);
-              setShowChallenge(true);
-            }}
-            onEnterScore={(participantId) => {
-              // Find a pending match that includes this participant and open score entry
-              const pending = rounds
-                .flatMap((r) => r.matches)
-                .find(
-                  (m) =>
-                    m.status === 'pending' &&
-                    (m.p1?.id === participantId || m.p2?.id === participantId),
-                );
-              if (pending) {
-                setActiveTab('schedule');
-                setScoreMatch(pending);
-                return;
-              }
-              // no pending match — open ad-hoc create match modal
-              setAdhocStarterId(participantId);
-              setShowAdhocMatch(true);
-            }}
-          />
-        )}
-        {activeTab === 'schedule' && (
-          <ScheduleTab
-            onEnterScore={setScoreMatch}
-            onOpenChallenge={() => setShowChallenge(true)}
-            highlightedMatchId={highlightedMatchId}
-          />
-        )}
+        {activeTab === 'standings' && <StandingsTab />}
+        {activeTab === 'schedule' && <ScheduleTab />}
         {activeTab === 'stats' && <StatsTab />}
       </div>
-
-      {scoreMatch && (
-        <ScoreEntryModal
-          match={scoreMatch}
-          onClose={() => setScoreMatch(null)}
-        />
-      )}
-
-      {showChallenge && (
-        <ChallengeModal
-          initialChallengerId={initialChallengerId}
-          initialChallengedId={initialChallengedId}
-          onCreated={(challengeMatch) => {
-            setShowChallenge(false);
-            setInitialChallengerId(null);
-            setInitialChallengedId(null);
-            setActiveTab('schedule');
-            setHighlightedMatchId(challengeMatch.id);
-            // clear highlight after a short time
-            setTimeout(() => setHighlightedMatchId(null), 2000);
-          }}
-          onClose={() => {
-            setShowChallenge(false);
-            setInitialChallengerId(null);
-            setInitialChallengedId(null);
-          }}
-        />
-      )}
-
-      {showAdhocMatch && (
-        <AdhocMatchModal
-          starterParticipantId={adhocStarterId}
-          onClose={() => {
-            setShowAdhocMatch(false);
-            setAdhocStarterId(null);
-          }}
-          onCreated={(match) => {
-            setActiveTab('schedule');
-            setScoreMatch(match);
-            setHighlightedMatchId(match.id);
-            setTimeout(() => setHighlightedMatchId(null), 2000);
-          }}
-        />
-      )}
     </div>
   );
+}
+
+// ── Root Dashboard — handles identity gate ────────────────────
+
+function DashboardInner() {
+  const { currentPlayer, loading } = usePlayerIdentity();
+  const { settings } = useLeague();
+
+  if (loading) {
+    return (
+      <div className="dashboard-loading">
+        <div className="loading-spinner" />
+        <div className="loading-text">Loading league…</div>
+      </div>
+    );
+  }
+
+  if (!currentPlayer) {
+    return (
+      <PlayerPicker leagueName={settings?.leagueName} sport={settings?.sport} />
+    );
+  }
+
+  return <DashboardContent />;
 }
 
 function Dashboard({ settings, leagueData }) {
   return (
     <LeagueProvider settings={settings} initialLeagueData={leagueData}>
-      <DashboardContent />
+      <DashboardInner />
     </LeagueProvider>
   );
 }

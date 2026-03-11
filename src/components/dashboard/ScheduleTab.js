@@ -1,6 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
-import { getParticipantName } from '../../utils/participants';
+import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
+import ScoreEntryModal from './ScoreEntryModal';
+import ChallengeModal from './ChallengeModal';
+
+function getParticipantName(p, isDoubles) {
+  if (!p) return 'BYE';
+  return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
+}
 
 function StatusBadge({ status, type }) {
   const map = {
@@ -8,24 +15,52 @@ function StatusBadge({ status, type }) {
       label: type === 'challenge' ? 'Challenge' : 'Pending',
       cls: 'badge-pending',
     },
-    completed: { label: 'Completed', cls: 'badge-completed' },
+    awaiting_confirmation: { label: 'Awaiting Confirm', cls: 'badge-awaiting' },
+    confirmed: { label: 'Confirmed', cls: 'badge-confirmed' },
+    disputed: { label: 'Disputed', cls: 'badge-disputed' },
     skipped: { label: 'Skipped', cls: 'badge-skipped' },
   };
   const { label, cls } = map[status] || map.pending;
   return <span className={`status-badge ${cls}`}>{label}</span>;
 }
 
-function MatchCard({ match, onEnterScore, onResolve, highlight = false }) {
+function AutoConfirmCountdown({ isoString }) {
+  if (!isoString) return null;
+  const diff = new Date(isoString).getTime() - Date.now();
+  if (diff <= 0)
+    return <span className="auto-confirm-label">Auto-confirming soon…</span>;
+  const hrs = Math.floor(diff / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  return (
+    <span className="auto-confirm-label">
+      Auto-confirms in {hrs > 0 ? `${hrs}h ` : ''}
+      {mins}m
+    </span>
+  );
+}
+
+function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
   const { isDoubles } = useLeague();
+  const { currentPlayer } = usePlayerIdentity();
+
   const p1Name = getParticipantName(match.p1, isDoubles);
   const p2Name = getParticipantName(match.p2, isDoubles);
+
   const isPending = match.status === 'pending';
-  const isDone = match.status === 'completed';
+  const isAwaiting = match.status === 'awaiting_confirmation';
+  const isConfirmed = match.status === 'confirmed';
+  const isDisputed = match.status === 'disputed';
+
+  // Can the current player confirm? They must be the opponent (not the submitter)
+  const canConfirm =
+    isAwaiting &&
+    currentPlayer &&
+    match.submittedBy !== currentPlayer.id &&
+    (match.p1?.id === currentPlayer.id || match.p2?.id === currentPlayer.id);
 
   return (
     <div
-      id={`match-${match.id}`}
-      className={`match-card ${isDone ? 'match-card-done' : ''} ${match.isBye ? 'match-card-bye' : ''} ${highlight ? 'match-highlight' : ''}`}
+      className={`match-card ${isConfirmed ? 'match-card-done' : ''} ${match.isBye ? 'match-card-bye' : ''} ${isDisputed ? 'match-card-disputed' : ''}`}
     >
       <div className="match-card-left">
         <div className="match-players">
@@ -36,13 +71,13 @@ function MatchCard({ match, onEnterScore, onResolve, highlight = false }) {
           ) : (
             <>
               <span
-                className={`match-player-name ${isDone && match.result?.winnerId === match.p1?.id ? 'match-winner' : ''}`}
+                className={`match-player-name ${isConfirmed && match.result?.winnerId === match.p1?.id ? 'match-winner' : ''}`}
               >
                 {p1Name}
               </span>
-              {isDone && match.result ? (
+              {isConfirmed && match.result ? (
                 <span className="match-score-display">
-                  {match.result.setScores.map((s, i) => (
+                  {match.result.setScores?.map((s, i) => (
                     <span key={i} className="match-set-score">
                       {s.p1}–{s.p2}
                       {s.tiebreak && (
@@ -55,7 +90,7 @@ function MatchCard({ match, onEnterScore, onResolve, highlight = false }) {
                 <span className="match-vs-text">vs</span>
               )}
               <span
-                className={`match-player-name ${isDone && match.result?.winnerId === match.p2?.id ? 'match-winner' : ''}`}
+                className={`match-player-name ${isConfirmed && match.result?.winnerId === match.p2?.id ? 'match-winner' : ''}`}
               >
                 {p2Name}
               </span>
@@ -67,6 +102,13 @@ function MatchCard({ match, onEnterScore, onResolve, highlight = false }) {
           <div className="match-meta">
             {match.result.date}
             {match.result.location && <> · {match.result.location}</>}
+          </div>
+        )}
+
+        {isAwaiting && (
+          <div className="match-meta">
+            Score submitted ·{' '}
+            <AutoConfirmCountdown isoString={match.autoConfirmAfter} />
           </div>
         )}
       </div>
@@ -82,12 +124,38 @@ function MatchCard({ match, onEnterScore, onResolve, highlight = false }) {
             >
               Enter Score
             </button>
-            <button
-              className="btn-resolve"
-              onClick={() => onResolve(match.id, 'skipped')}
-            >
+            <button className="btn-resolve" onClick={() => onSkip(match.id)}>
               Skip
             </button>
+          </div>
+        )}
+
+        {isAwaiting && (
+          <div className="match-actions">
+            {canConfirm ? (
+              <>
+                <button
+                  className="btn-score-entry"
+                  onClick={() => onConfirm(match)}
+                >
+                  ✓ Confirm
+                </button>
+                <button
+                  className="btn-resolve"
+                  onClick={() => onDispute(match)}
+                >
+                  Dispute
+                </button>
+              </>
+            ) : (
+              <span className="match-waiting-label">Waiting for opponent</span>
+            )}
+          </div>
+        )}
+
+        {isDisputed && (
+          <div className="match-actions">
+            <span className="match-disputed-label">⚠ Pending admin review</span>
           </div>
         )}
       </div>
@@ -95,9 +163,9 @@ function MatchCard({ match, onEnterScore, onResolve, highlight = false }) {
   );
 }
 
-function RoundSection({ round, onEnterScore, onResolve }) {
-  const completedCount = round.matches.filter(
-    (m) => m.status === 'completed' || m.status === 'skipped',
+function RoundSection({ round, onEnterScore, onConfirm, onDispute, onSkip }) {
+  const completedCount = round.matches.filter((m) =>
+    ['confirmed', 'skipped'].includes(m.status),
   ).length;
   const totalNonBye = round.matches.filter((m) => !m.isBye).length;
 
@@ -133,8 +201,9 @@ function RoundSection({ round, onEnterScore, onResolve }) {
             key={match.id}
             match={match}
             onEnterScore={onEnterScore}
-            onResolve={onResolve}
-            highlight={match._highlight}
+            onConfirm={onConfirm}
+            onDispute={onDispute}
+            onSkip={onSkip}
           />
         ))}
       </div>
@@ -142,47 +211,126 @@ function RoundSection({ round, onEnterScore, onResolve }) {
   );
 }
 
-function ScheduleTab({
-  onEnterScore,
-  onOpenChallenge,
-  highlightedMatchId = null,
-}) {
-  const { rounds, resolveMatch } = useLeague();
+// ── Dispute modal ─────────────────────────────────────────────
 
-  // Attach a temporary `_highlight` flag to matches for rendering
-  const roundsWithHighlight = rounds.map((r) => ({
-    ...r,
-    matches: r.matches.map((m) => ({
-      ...m,
-      _highlight: highlightedMatchId === m.id,
-    })),
-  }));
+function DisputeModal({ match, onClose }) {
+  const { isDoubles, disputeResult } = useLeague();
+  const { currentPlayer } = usePlayerIdentity();
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!highlightedMatchId) return;
-    const el = document.getElementById(`match-${highlightedMatchId}`);
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Add a transient pulse class (relies on CSS) — class already applied via match._highlight
+  const handleSubmit = async () => {
+    if (!reason.trim()) return;
+    setLoading(true);
+    try {
+      await disputeResult(match.id, currentPlayer?.id, reason.trim());
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-  }, [highlightedMatchId]);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title">Dispute Score</div>
+          <button className="modal-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <div className="modal-body">
+          <p
+            style={{
+              fontSize: '0.85rem',
+              color: 'var(--cream)',
+              marginBottom: '0.5rem',
+            }}
+          >
+            Describe what's incorrect about the submitted score. An admin will
+            review within 24 hours.
+          </p>
+          <textarea
+            className="bulk-textarea"
+            placeholder="e.g. The score was 6-4, 3-6, 7-5, not 6-4, 6-3"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+          />
+        </div>
+        <div className="modal-footer">
+          <button className="btn-back" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="btn-next"
+            onClick={handleSubmit}
+            disabled={!reason.trim() || loading}
+          >
+            {loading ? 'Submitting…' : 'Submit Dispute'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main ScheduleTab ──────────────────────────────────────────
+
+function ScheduleTab() {
+  const { rounds, confirmResult } = useLeague();
+  const { currentPlayer } = usePlayerIdentity();
+
+  const [scoreMatch, setScoreMatch] = useState(null);
+  const [disputeMatch, setDisputeMatch] = useState(null);
+  const [showChallenge, setShowChallenge] = useState(false);
+
+  const handleConfirm = async (match) => {
+    if (!currentPlayer) return;
+    await confirmResult(match.id, currentPlayer.id);
+  };
 
   return (
     <div className="schedule-wrapper">
       <div className="schedule-toolbar">
-        <button className="btn-challenge-open" onClick={onOpenChallenge}>
+        <button
+          className="btn-challenge-open"
+          onClick={() => setShowChallenge(true)}
+        >
           + Issue Challenge
         </button>
       </div>
 
-      {roundsWithHighlight.map((round) => (
+      {rounds.map((round) => (
         <RoundSection
           key={round.roundNumber}
           round={round}
-          onEnterScore={onEnterScore}
-          onResolve={resolveMatch}
+          onEnterScore={setScoreMatch}
+          onConfirm={handleConfirm}
+          onDispute={setDisputeMatch}
+          onSkip={(id) => {
+            /* resolveMatch(id) */
+          }}
         />
       ))}
+
+      {scoreMatch && (
+        <ScoreEntryModal
+          match={scoreMatch}
+          onClose={() => setScoreMatch(null)}
+        />
+      )}
+      {disputeMatch && (
+        <DisputeModal
+          match={disputeMatch}
+          onClose={() => setDisputeMatch(null)}
+        />
+      )}
+      {showChallenge && (
+        <ChallengeModal onClose={() => setShowChallenge(false)} />
+      )}
     </div>
   );
 }

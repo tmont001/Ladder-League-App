@@ -1,7 +1,6 @@
 import Portal from '../shared/Portal';
 import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
-import { getParticipantName } from '../../utils/participants';
 
 // ─── Valid score ranges per sport ─────────────────────────
 
@@ -60,6 +59,10 @@ function getSetCount(format) {
   if (format === 'best_of_3') return 3;
   if (format === 'best_of_5') return 5;
   return 3;
+}
+
+function getParticipantName(p, isDoubles) {
+  return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
 }
 
 // ─── Single set score row ────────────────────────────────

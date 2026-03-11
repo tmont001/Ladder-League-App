@@ -3,7 +3,6 @@ import React, { useState, useMemo } from 'react';
 import ThemeToggle from './shared/ThemeToggle';
 import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
 import { generateLeague } from '../utils/matchGenerator';
-import { generateId } from '../utils/participants';
 
 // ─── Constants ────────────────────────────────────────────
 
@@ -27,6 +26,10 @@ const FORMAT_LABELS = {
   best_of_3: 'Best of 3',
   best_of_5: 'Best of 5',
 };
+
+function generateId() {
+  return Math.random().toString(36).substr(2, 9);
+}
 
 function getSportIcon(sport, size = 16) {
   return sport === 'tennis' ? (

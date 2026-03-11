@@ -1,201 +1,328 @@
+// src/context/LeagueContext.js
 import React, {
   createContext,
   useContext,
   useState,
+  useEffect,
   useCallback,
   useMemo,
-  useEffect,
-  useRef,
 } from 'react';
-import { generateLeague } from '../utils/matchGenerator';
-import { deriveStandings, isRoundComplete } from '../utils/standingsEngine';
+import { supabase } from '../lib/supabase';
+import {
+  fetchMatches,
+  fetchPlayers,
+  fetchTeams,
+  submitMatchResult,
+  confirmMatchResult,
+  openDispute,
+  skipMatch,
+  createMatches,
+  createChallenge,
+  acceptChallenge,
+  fetchChallenges,
+  fetchNotifications,
+  markNotificationsRead,
+} from '../lib/db';
+import { deriveStandings, isRoundComplete } from '../utils/matchGenerator';
 
 const LeagueContext = createContext();
 
-export function LeagueProvider({
-  settings = { singlesOrDoubles: 'singles', rounds: 1 },
-  initialLeagueData = { seededParticipants: [], rounds: [], matches: [] },
-  children,
-}) {
-  const isDoubles = settings && settings.singlesOrDoubles === 'doubles';
+function generateId() {
+  return Math.random().toString(36).substr(2, 9);
+}
 
-  const [rounds, setRounds] = useState(initialLeagueData.rounds || []);
-  const [matches, setMatches] = useState(initialLeagueData.matches || []);
-  const [participants, setParticipants] = useState(initialLeagueData.seededParticipants || []);
+// Rebuild rounds[] from flat matches array
+function buildRoundsFromMatches(matches, participants, isDoubles) {
+  const roundMap = {};
+  matches.forEach((m) => {
+    const rn = m.round_number || m.round || 1;
+    if (!roundMap[rn]) roundMap[rn] = [];
+    roundMap[rn].push(hydrateMatch(m, participants, isDoubles));
+  });
+  return Object.keys(roundMap)
+    .sort((a, b) => Number(a) - Number(b))
+    .map((rn) => {
+      const roundMatches = roundMap[rn];
+      return {
+        roundNumber: Number(rn),
+        matches: roundMatches,
+        isComplete: isRoundComplete({ matches: roundMatches }),
+      };
+    });
+}
+
+// DB match row → UI shape
+function hydrateMatch(dbMatch, participants, isDoubles) {
+  const find = (id) => {
+    if (!id) return null;
+    return participants.find((p) => p.id === id) || null;
+  };
+  const p1Id = isDoubles ? dbMatch.p1_team_id : dbMatch.p1_player_id;
+  const p2Id = isDoubles ? dbMatch.p2_team_id : dbMatch.p2_player_id;
+  return {
+    id: dbMatch.id,
+    round: dbMatch.round_number || dbMatch.round || 1,
+    type: dbMatch.type || 'scheduled',
+    isBye: dbMatch.is_bye || false,
+    p1: find(p1Id) || dbMatch.p1 || null,
+    p2: find(p2Id) || dbMatch.p2 || null,
+    status: dbMatch.status || 'pending',
+    result: dbMatch.result || null,
+    submittedBy: dbMatch.submitted_by || null,
+    submittedAt: dbMatch.submitted_at || null,
+    autoConfirmAfter: dbMatch.auto_confirm_after || null,
+  };
+}
+
+export function LeagueProvider({ settings, initialLeagueData, children }) {
+  const leagueId = settings?.id;
+  const isDoubles = settings?.singlesOrDoubles === 'doubles';
+
+  const [participants, setParticipants] = useState(
+    initialLeagueData?.seededParticipants || [],
+  );
+  const [rawMatches, setRawMatches] = useState(
+    initialLeagueData?.matches || [],
+  );
+  const [challenges, setChallenges] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [outboxEmails, setOutboxEmails] = useState([]);
+  const [loadingDb, setLoadingDb] = useState(!!leagueId);
 
-  // ref to access latest outbox from interval closure
-  const outboxRef = useRef(outboxEmails);
+  // ── Load from DB ─────────────────────────────────────────
   useEffect(() => {
-    outboxRef.current = outboxEmails;
-  }, [outboxEmails]);
-
-  // Flush outbox to backend periodically
-  useEffect(() => {
-    const intervalSec = parseInt(process.env.REACT_APP_OUTBOX_FLUSH_SECONDS || '30', 10);
-    const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:4001';
-
-    let stopped = false;
-
-    const flushOnce = async () => {
-      if (stopped) return;
-      const pending = (outboxRef.current || []).slice();
-      if (!pending.length) return;
-      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-
-      for (const item of pending) {
-        try {
-          const res = await fetch(`${apiBase}/send-email`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to: item.to || [], subject: item.subject, body: item.body }),
-          });
-          if (res.ok) {
-            // remove from outbox
-            setOutboxEmails((prev) => prev.filter((e) => e.id !== item.id));
-          }
-        } catch (err) {
-          // network error — keep in outbox and try later
-        }
+    if (!leagueId) {
+      setLoadingDb(false);
+      return;
+    }
+    async function load() {
+      try {
+        const [dbPlayers, dbTeams, dbMatches, dbChallenges] = await Promise.all(
+          [
+            fetchPlayers(leagueId),
+            isDoubles ? fetchTeams(leagueId) : Promise.resolve([]),
+            fetchMatches(leagueId),
+            fetchChallenges(leagueId),
+          ],
+        );
+        setParticipants(isDoubles ? dbTeams : dbPlayers);
+        setRawMatches(dbMatches);
+        setChallenges(dbChallenges);
+      } catch (err) {
+        console.error('[LeagueContext] load error:', err.message);
+      } finally {
+        setLoadingDb(false);
       }
-    };
+    }
+    load();
+  }, [leagueId, isDoubles]);
 
-    // initial flush shortly after mount
-    const initial = setTimeout(() => flushOnce(), 1500);
-    const iv = setInterval(() => flushOnce(), Math.max(5000, intervalSec * 1000));
+  // ── Real-time: matches ────────────────────────────────────
+  useEffect(() => {
+    if (!leagueId) return;
+    const ch = supabase
+      .channel(`matches-${leagueId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+          filter: `league_id=eq.${leagueId}`,
+        },
+        ({ eventType, new: n, old: o }) => {
+          setRawMatches((prev) => {
+            if (eventType === 'INSERT') return [...prev, n];
+            if (eventType === 'UPDATE')
+              return prev.map((m) => (m.id === n.id ? n : m));
+            if (eventType === 'DELETE')
+              return prev.filter((m) => m.id !== o.id);
+            return prev;
+          });
+        },
+      )
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [leagueId]);
 
-    return () => {
-      stopped = true;
-      clearTimeout(initial);
-      clearInterval(iv);
-    };
-  }, [setOutboxEmails]);
+  // ── Real-time: challenges ─────────────────────────────────
+  useEffect(() => {
+    if (!leagueId) return;
+    const ch = supabase
+      .channel(`challenges-${leagueId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'challenges',
+          filter: `league_id=eq.${leagueId}`,
+        },
+        ({ eventType, new: n }) => {
+          setChallenges((prev) => {
+            if (eventType === 'INSERT') return [n, ...prev];
+            if (eventType === 'UPDATE')
+              return prev.map((c) => (c.id === n.id ? n : c));
+            return prev;
+          });
+        },
+      )
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [leagueId]);
 
-  // Derived standings — recomputed when participants/matches/isDoubles change
-  const standings = useMemo(
-    () => deriveStandings(participants, matches, isDoubles),
-    [participants, matches, isDoubles],
+  // ── Derived ───────────────────────────────────────────────
+  const hydratedMatches = useMemo(
+    () => rawMatches.map((m) => hydrateMatch(m, participants, isDoubles)),
+    [rawMatches, participants, isDoubles],
   );
 
-  // ── Submit a match result ────────────────────────────────
-  const submitResult = useCallback((matchId, result) => {
-    setMatches((prev) =>
-      prev.map((m) => {
-        if (m.id !== matchId) return m;
-        return { ...m, status: 'completed', result };
-      }),
-    );
+  const rounds = useMemo(
+    () => buildRoundsFromMatches(rawMatches, participants, isDoubles),
+    [rawMatches, participants, isDoubles],
+  );
 
-    setRounds((prev) =>
-      prev.map((round) => {
-        const updatedMatches = round.matches.map((m) => {
-          if (m.id !== matchId) return m;
-          return { ...m, status: 'completed', result };
-        });
-        const complete = isRoundComplete({ ...round, matches: updatedMatches });
-        return { ...round, matches: updatedMatches, isComplete: complete };
-      }),
-    );
-  }, []);
+  const standings = useMemo(
+    () => deriveStandings(participants, hydratedMatches, isDoubles),
+    [participants, hydratedMatches, isDoubles],
+  );
 
-  // update ranking_score based on match result
-  useEffect(() => {
-    // whenever matches change, optionally update participant ranking_score
-    // This is a lightweight example: for newly completed matches, apply a fixed delta to winner/loser
-    // Find completed matches that haven't been applied yet by checking a flag in result._applied
-    const toApply = matches.filter((m) => m.status === 'completed' && m.result && !m.result._applied);
-    if (!toApply.length) return;
+  const currentRoundNumber = useMemo(
+    () => rounds.findIndex((r) => !r.isComplete) + 1 || rounds.length || 1,
+    [rounds],
+  );
 
-    toApply.forEach((m) => {
-      const { winnerId, p1Sets = 0, p2Sets = 0 } = m.result;
-      const loserId = winnerId === m.p1?.id ? m.p2?.id : m.p1?.id;
-      const delta = Math.max(1, Math.abs(p1Sets - p2Sets)) * 10; // simple points: 10 * set difference
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
-      setParticipants((prev) =>
-        prev.map((p) => {
-          if (p.id === winnerId) {
-            const current = parseFloat(p.ranking_score || 0);
-            return { ...p, ranking_score: Number((current + delta).toFixed(4)) };
-          }
-          if (p.id === loserId) {
-            const current = parseFloat(p.ranking_score || 0);
-            return { ...p, ranking_score: Number((current - Math.max(1, delta / 2)).toFixed(4)) };
-          }
-          return p;
-        }),
-      );
+  // ── Actions ───────────────────────────────────────────────
 
-      // mark match result as applied to avoid double-applying
-      setMatches((prev) => prev.map((mm) => (mm.id === m.id ? { ...mm, result: { ...mm.result, _applied: true } } : mm)));
-    });
-  }, [matches, setParticipants, setMatches]);
-
-  // ── Mark a match as forfeit or skipped ──────────────────
-  const resolveMatch = useCallback((matchId, status) => {
-    setMatches((prev) =>
-      prev.map((m) => (m.id === matchId ? { ...m, status } : m)),
-    );
-    setRounds((prev) =>
-      prev.map((round) => {
-        const updatedMatches = round.matches.map((m) =>
-          m.id === matchId ? { ...m, status } : m,
+  const submitResult = useCallback(
+    async (matchId, result, submittedByPlayerId) => {
+      if (leagueId) {
+        await submitMatchResult(matchId, result, submittedByPlayerId);
+      } else {
+        setRawMatches((prev) =>
+          prev.map((m) =>
+            m.id === matchId
+              ? {
+                  ...m,
+                  status: 'awaiting_confirmation',
+                  result,
+                  submitted_by: submittedByPlayerId,
+                }
+              : m,
+          ),
         );
-        const complete = isRoundComplete({ ...round, matches: updatedMatches });
-        return { ...round, matches: updatedMatches, isComplete: complete };
-      }),
-    );
-  }, []);
+      }
+    },
+    [leagueId],
+  );
 
-  // ── Add a challenge match ────────────────────────────────
-  const addChallenge = useCallback((challengeMatch) => {
-    setMatches((prev) => [...prev, challengeMatch]);
-    setRounds((prev) =>
-      prev.map((round) => {
-        if (round.roundNumber !== challengeMatch.round) return round;
-        return { ...round, matches: [...round.matches, challengeMatch] };
-      }),
-    );
-    // record a simple in-memory notification and outbox email stub
-    setNotifications((n) => [
-      ...n,
-      {
-        id: `notif_${challengeMatch.id}`,
-        type: 'challenge_created',
-        matchId: challengeMatch.id,
-        createdAt: new Date().toISOString(),
-        payload: {
-          challenger: challengeMatch.p1,
-          challenged: challengeMatch.p2,
-        },
-      },
-    ]);
-    setOutboxEmails((o) => [
-      ...o,
-      {
-        id: `email_${challengeMatch.id}`,
-        to: [],
-        subject: `New challenge: ${challengeMatch.p1.name} → ${challengeMatch.p2.name}`,
-        body: `You have a new challenge from ${challengeMatch.p1.name}.`,
-        createdAt: new Date().toISOString(),
-      },
-    ]);
-  }, []);
+  const confirmResult = useCallback(
+    async (matchId, confirmedByPlayerId) => {
+      if (leagueId) {
+        await confirmMatchResult(matchId, confirmedByPlayerId);
+      } else {
+        setRawMatches((prev) =>
+          prev.map((m) =>
+            m.id === matchId ? { ...m, status: 'confirmed' } : m,
+          ),
+        );
+      }
+    },
+    [leagueId],
+  );
 
-  // Add an ad-hoc match to the current round
-  const addMatch = useCallback((match) => {
-    setMatches((prev) => [...prev, match]);
-    setRounds((prev) =>
-      prev.map((round) => {
-        if (round.roundNumber !== match.round) return round;
-        return { ...round, matches: [...round.matches, match] };
-      }),
-    );
-  }, []);
+  const disputeResult = useCallback(
+    async (matchId, openedByPlayerId, reason, counterScore) => {
+      if (leagueId) {
+        await openDispute(matchId, openedByPlayerId, reason, counterScore);
+      } else {
+        setRawMatches((prev) =>
+          prev.map((m) =>
+            m.id === matchId ? { ...m, status: 'disputed' } : m,
+          ),
+        );
+      }
+    },
+    [leagueId],
+  );
 
-  // ── Advance to next round (manual trigger) ───────────────
-  const idx = rounds.findIndex((r) => !r.isComplete);
-  const currentRoundNumber = idx === -1 ? rounds.length : idx + 1;
+  const resolveMatch = useCallback(
+    async (matchId) => {
+      if (leagueId) {
+        await skipMatch(matchId);
+      } else {
+        setRawMatches((prev) =>
+          prev.map((m) => (m.id === matchId ? { ...m, status: 'skipped' } : m)),
+        );
+      }
+    },
+    [leagueId],
+  );
+
+  const addChallenge = useCallback(
+    async (challengerParticipant, challengedParticipant) => {
+      const noResponseDays = settings?.challengeRules?.noResponseDays ?? 5;
+      if (leagueId) {
+        const challenge = await createChallenge(
+          leagueId,
+          challengerParticipant,
+          challengedParticipant,
+          noResponseDays,
+        );
+        const matchRows = [
+          {
+            round: currentRoundNumber,
+            round_number: currentRoundNumber,
+            type: 'challenge',
+            isBye: false,
+            is_bye: false,
+            p1_player_id: challengerParticipant.id,
+            p2_player_id: challengedParticipant.id,
+            status: 'pending',
+            result: null,
+          },
+        ];
+        const [matchRow] = await createMatches(leagueId, matchRows);
+        await acceptChallenge(challenge.id, matchRow.id);
+      } else {
+        const m = {
+          id: generateId(),
+          round: currentRoundNumber,
+          round_number: currentRoundNumber,
+          type: 'challenge',
+          is_bye: false,
+          isBye: false,
+          p1: challengerParticipant,
+          p2: challengedParticipant,
+          p1_player_id: challengerParticipant.id,
+          p2_player_id: challengedParticipant.id,
+          status: 'pending',
+          result: null,
+        };
+        setRawMatches((prev) => [...prev, m]);
+      }
+    },
+    [leagueId, currentRoundNumber, settings],
+  );
+
+  const loadNotifications = useCallback(
+    async (playerId) => {
+      if (!leagueId || !playerId) return;
+      const data = await fetchNotifications(playerId);
+      setNotifications(data);
+    },
+    [leagueId],
+  );
+
+  const readAllNotifications = useCallback(
+    async (playerId) => {
+      if (!leagueId || !playerId) return;
+      await markNotificationsRead(playerId);
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    },
+    [leagueId],
+  );
 
   return (
     <LeagueContext.Provider
@@ -204,17 +331,20 @@ export function LeagueProvider({
         isDoubles,
         participants,
         rounds,
-        matches,
-        notifications,
-        outboxEmails,
+        matches: hydratedMatches,
         standings,
+        challenges,
+        notifications,
+        unreadCount,
         currentRoundNumber,
+        loadingDb,
         submitResult,
+        confirmResult,
+        disputeResult,
         resolveMatch,
         addChallenge,
-        addMatch,
-        setNotifications,
-        setOutboxEmails,
+        loadNotifications,
+        readAllNotifications,
       }}
     >
       {children}
