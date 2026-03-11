@@ -113,7 +113,7 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack }) {
           <label>League Name</label>
           <input
             type="text"
-            placeholder="e.g. Mineola Tennis Club Fall League"
+            placeholder="e.g. My Tennis Club Ladder League"
             value={settings.leagueName}
             onChange={(e) => set('leagueName', e.target.value)}
           />
