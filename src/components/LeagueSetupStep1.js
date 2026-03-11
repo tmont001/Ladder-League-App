@@ -30,11 +30,11 @@ const SPORTS = [
 
 // Only relevant for tennis when best_of_3 or best_of_5 is chosen
 const THIRD_SET_OPTIONS = [
-  { value: 'full_set', label: 'Full set (first to 6)' },
+  { value: 'full_set', label: 'Full third set (first to 6)' },
   { value: 'super_tiebreak', label: 'Super tiebreak (first to 10)' },
 ];
 
-function LeagueSetupStep1({ onNext, initialSettings }) {
+function LeagueSetupStep1({ onNext, initialSettings, onBack }) {
   const [settings, setSettings] = useState(
     initialSettings || {
       leagueName: '',
@@ -223,7 +223,12 @@ function LeagueSetupStep1({ onNext, initialSettings }) {
         </div>
       </div>
 
-      <div className="card-footer">
+      <div className={`card-footer ${onBack ? 'card-footer-two' : ''}`}>
+        {onBack && (
+          <button className="btn-back" onClick={onBack}>
+            ← Back
+          </button>
+        )}
         <button
           className="btn-next"
           disabled={!isValid}

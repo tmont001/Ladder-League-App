@@ -27,16 +27,20 @@ const ORGANIZER_IDENTITY = {
 export function PlayerIdentityProvider({
   leagueId,
   isOrganizer: isOrgProp,
+  initialPlayer,
   children,
 }) {
   // If isOrganizer prop is true (just launched), skip token lookup entirely
   const orgFromStorage = leagueId ? isOrganizer(leagueId) : false;
   const startAsOrg = isOrgProp || orgFromStorage;
 
-  const [currentPlayer, setCurrentPlayer] = useState(
-    startAsOrg ? ORGANIZER_IDENTITY : null,
+  const startingPlayer = startAsOrg
+    ? ORGANIZER_IDENTITY
+    : initialPlayer || null;
+  const [currentPlayer, setCurrentPlayer] = useState(startingPlayer);
+  const [loading, setLoading] = useState(
+    !startAsOrg && !initialPlayer && !!leagueId,
   );
-  const [loading, setLoading] = useState(!startAsOrg && !!leagueId);
 
   // Check localStorage for a stored player token (returning player, not organizer)
   useEffect(() => {

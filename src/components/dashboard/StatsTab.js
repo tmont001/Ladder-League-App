@@ -10,7 +10,7 @@ function pct(wins, played) {
   return `${Math.round((wins / played) * 100)}%`;
 }
 
-function StatBar({ value, max, color = 'var(--lime)' }) {
+function StatBar({ value, max, color = 'var(--accent)' }) {
   const width = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
     <div className="stat-bar-track">
@@ -58,7 +58,11 @@ function StatCard({ entry, rank, isDoubles, maxSets, maxGames, maxMatches }) {
         <div className="stat-row">
           <span className="stat-row-label">Games</span>
           <span className="stat-row-value">{gamesRatio}</span>
-          <StatBar value={entry.gamesWon} max={maxGames} color="var(--muted)" />
+          <StatBar
+            value={entry.gamesWon}
+            max={maxGames}
+            color="var(--text-muted)"
+          />
         </div>
       </div>
     </div>

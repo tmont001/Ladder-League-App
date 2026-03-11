@@ -245,7 +245,7 @@ function DisputeModal({ match, onClose }) {
           <p
             style={{
               fontSize: '0.85rem',
-              color: 'var(--cream)',
+              color: 'var(--text)',
               marginBottom: '0.5rem',
             }}
           >

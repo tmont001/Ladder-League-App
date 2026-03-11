@@ -40,7 +40,7 @@ function PlayerCodeRow({ player, leagueUrl }) {
       <code className="launch-code-token">{token}</code>
       <div className="launch-code-actions">
         <CopyButton text={token} label="Copy code" />
-        <CopyButton text={invite} label="Copy invite" />
+        <CopyButton text={invite} label="Copy invite message" />
       </div>
     </div>
   );

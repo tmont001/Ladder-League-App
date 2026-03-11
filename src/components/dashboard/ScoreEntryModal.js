@@ -1,6 +1,7 @@
 import Portal from '../shared/Portal';
 import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
+import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 
 // ─── Valid score ranges per sport ─────────────────────────
 
@@ -109,100 +110,100 @@ function SetScoreRow({
   const hasScore = p1 !== '' && p2 !== '';
 
   return (
-    <div
-      className={`set-row set-row-dual ${hasScore && !isValid ? 'set-row-invalid' : ''}`}
-    >
-      <span className="set-label">
+    <div className={`set-row ${hasScore && !isValid ? 'set-row-invalid' : ''}`}>
+      <div className="set-label">
         {label}
         {isDeciding && !isSuperTb && (
           <span className="set-deciding-tag">deciding</span>
         )}
-      </span>
-
-      <div className="set-dual-inputs">
-        {/* P1 score */}
-        <div className="set-player-score">
-          <span className="set-player-label">{p1Name.split(' ')[0]}</span>
-          <select
-            className="score-dropdown"
-            value={p1}
-            onChange={(e) => onSetChange(index, 'p1', e.target.value)}
-          >
-            <option value="">—</option>
-            {p1Opts.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <span className="set-dual-sep">–</span>
-
-        {/* P2 score */}
-        <div className="set-player-score">
-          <select
-            className="score-dropdown"
-            value={p2}
-            onChange={(e) => onSetChange(index, 'p2', e.target.value)}
-          >
-            <option value="">—</option>
-            {p2Opts.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <span className="set-player-label">{p2Name.split(' ')[0]}</span>
-        </div>
-
-        {/* Validity tick */}
-        {hasScore && (
-          <span className={`set-validity ${isValid ? 'valid' : 'invalid'}`}>
-            {isValid ? '✓' : '✗'}
-          </span>
-        )}
       </div>
 
-      {/* Tiebreak score row — appears when set is 7-6 */}
-      {showTb && (
-        <div className="tb-score-row">
-          <span className="tb-label">Tiebreak</span>
-          <div className="set-dual-inputs">
-            <div className="set-player-score">
-              <span className="set-player-label">{p1Name.split(' ')[0]}</span>
-              <select
-                className="score-dropdown score-dropdown-sm"
-                value={tbP1}
-                onChange={(e) => onSetChange(index, 'tbP1', e.target.value)}
-              >
-                <option value="">—</option>
-                {tbOpts.map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <span className="set-dual-sep">–</span>
-            <div className="set-player-score">
-              <select
-                className="score-dropdown score-dropdown-sm"
-                value={tbP2}
-                onChange={(e) => onSetChange(index, 'tbP2', e.target.value)}
-              >
-                <option value="">—</option>
-                {tbOpts.map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-              <span className="set-player-label">{p2Name.split(' ')[0]}</span>
+      <div>
+        <div className="set-dual-inputs">
+          {/* P1 column */}
+          <div className="set-player-col">
+            <span className="set-player-label">{p1Name.split(' ')[0]}</span>
+            <select
+              className="set-player-select"
+              value={p1}
+              onChange={(e) => onSetChange(index, 'p1', e.target.value)}
+            >
+              <option value="">—</option>
+              {p1Opts.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="set-dual-sep">–</div>
+
+          {/* P2 column */}
+          <div className="set-player-col">
+            <span className="set-player-label">{p2Name.split(' ')[0]}</span>
+            <select
+              className="set-player-select"
+              value={p2}
+              onChange={(e) => onSetChange(index, 'p2', e.target.value)}
+            >
+              <option value="">—</option>
+              {p2Opts.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {hasScore && (
+            <span className={`set-validity ${isValid ? 'valid' : 'invalid'}`}>
+              {isValid ? '✓' : '✗'}
+            </span>
+          )}
+        </div>
+
+        {/* Tiebreak score row — appears when set is 7-6 */}
+        {showTb && (
+          <div className="tb-score-row">
+            <span className="tb-label">Tiebreak score</span>
+            <div className="set-dual-inputs">
+              <div className="set-player-col">
+                <span className="set-player-label">{p1Name.split(' ')[0]}</span>
+                <select
+                  className="set-player-select"
+                  value={tbP1}
+                  onChange={(e) => onSetChange(index, 'tbP1', e.target.value)}
+                >
+                  <option value="">—</option>
+                  {tbOpts.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="set-dual-sep">–</div>
+              <div className="set-player-col">
+                <span className="set-player-label">{p2Name.split(' ')[0]}</span>
+                <select
+                  className="set-player-select"
+                  value={tbP2}
+                  onChange={(e) => onSetChange(index, 'tbP2', e.target.value)}
+                >
+                  <option value="">—</option>
+                  {tbOpts.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -211,6 +212,7 @@ function SetScoreRow({
 
 function ScoreEntryModal({ match, onClose }) {
   const { settings, isDoubles, submitResult } = useLeague();
+  const { currentPlayer } = usePlayerIdentity();
   const sport = settings.sport;
   const format = settings.format;
   const thirdSetFormat = settings.thirdSetFormat || 'full_set';
@@ -320,13 +322,22 @@ function ScoreEntryModal({ match, onClose }) {
       : p2Name
     : null;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!result) {
       setError('Please enter valid scores for all played sets.');
       return;
     }
-    submitResult(match.id, result);
-    onClose();
+    try {
+      await submitResult(match.id, result, currentPlayer?.id || null);
+      onClose();
+    } catch (err) {
+      const msg =
+        err?.message ||
+        (typeof err === 'string'
+          ? err
+          : 'Failed to submit score. Please try again.');
+      setError(msg);
+    }
   };
 
   return (

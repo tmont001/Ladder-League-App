@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { PlayerIdentityProvider } from './context/PlayerIdentityContext';
+import HomeScreen from './components/HomeScreen';
+import PlayerJoinScreen from './components/PlayerJoinScreen';
 import LeagueSetupStep1 from './components/LeagueSetupStep1';
 import LeagueSetupStep2 from './components/LeagueSetupStep2';
 import LaunchCodesScreen from './components/LaunchCodesScreen';
@@ -16,27 +18,31 @@ import {
 import { setActiveLeagueId, setOrganizer } from './lib/session';
 
 // Steps:
-//   1 → League settings
-//   2 → Add players
-//   3 → Launch codes screen (organizer saves/shares codes)
-//   4 → Dashboard
+//   'home'        → Home screen (create or join)
+//   'join'        → Player code entry
+//   'setup1'      → League settings
+//   'setup2'      → Add players
+//   'codes'       → Launch codes (organizer saves/shares)
+//   'dashboard'   → Live dashboard
 
 function AppContent() {
-  const [step, setStep] = useState(1);
+  const [screen, setScreen] = useState('home');
   const [leagueSettings, setLeagueSettings] = useState(null);
   const [leagueData, setLeagueData] = useState(null);
   const [effectiveSettings, setEffectiveSettings] = useState(null);
   const [launching, setLaunching] = useState(false);
+  // Player who joined via code (not the organizer)
+  const [joinedPlayer, setJoinedPlayer] = useState(null);
 
+  // ── Create flow ──────────────────────────────────────────
   const handleStep1Next = (settings) => {
     setLeagueSettings(settings);
-    setStep(2);
+    setScreen('setup2');
   };
 
   const handleLaunch = async (generatedLeague, finalSettings) => {
     setLaunching(true);
     try {
-      // ── Persist to Supabase ────────────────────────────────
       const dbLeague = await createLeague(finalSettings);
       const leagueId = dbLeague.id;
 
@@ -70,14 +76,12 @@ function AppContent() {
         finalSettings.singlesOrDoubles === 'doubles',
       );
 
-      // Mark this browser as the organizer for this league
       setActiveLeagueId(leagueId);
       setOrganizer(leagueId);
 
       setEffectiveSettings({ ...finalSettings, id: leagueId });
       setLeagueData({ ...generatedLeague, seededParticipants: dbPlayers });
     } catch (err) {
-      // ── In-memory fallback (no DB) ─────────────────────────
       console.warn(
         '[App] Supabase unavailable, running in-memory:',
         err.message,
@@ -94,47 +98,68 @@ function AppContent() {
     }
 
     setLaunching(false);
-    setStep(3); // → codes screen
+    setScreen('codes');
   };
 
-  const handleEnterDashboard = () => {
-    setStep(4);
+  // ── Join flow ────────────────────────────────────────────
+  const handleJoined = (player) => {
+    setJoinedPlayer(player);
+    // Build minimal settings from the player's league data
+    setEffectiveSettings(player.leagueSettings || { id: player.leagueId });
+    setScreen('dashboard');
   };
 
   const activeSettings = effectiveSettings || leagueSettings;
+  // Organizer: came through create flow. Player: came through join flow.
+  const isOrganizerSession = screen === 'dashboard' && !joinedPlayer;
 
   return (
     <div className="app">
-      {step === 1 && (
-        <LeagueSetupStep1
-          onNext={handleStep1Next}
-          initialSettings={leagueSettings}
+      {screen === 'home' && (
+        <HomeScreen
+          onCreateLeague={() => setScreen('setup1')}
+          onJoinLeague={() => setScreen('join')}
         />
       )}
 
-      {step === 2 && (
+      {screen === 'join' && (
+        <PlayerJoinScreen
+          onJoined={handleJoined}
+          onBack={() => setScreen('home')}
+        />
+      )}
+
+      {screen === 'setup1' && (
+        <LeagueSetupStep1
+          onNext={handleStep1Next}
+          initialSettings={leagueSettings}
+          onBack={() => setScreen('home')}
+        />
+      )}
+
+      {screen === 'setup2' && (
         <LeagueSetupStep2
           settings={leagueSettings}
           onLaunch={handleLaunch}
-          onBack={() => setStep(1)}
+          onBack={() => setScreen('setup1')}
           externalLaunching={launching}
         />
       )}
 
-      {step === 3 && leagueData && (
+      {screen === 'codes' && leagueData && (
         <LaunchCodesScreen
           leagueName={activeSettings?.leagueName}
           participants={leagueData.seededParticipants}
           isDoubles={activeSettings?.singlesOrDoubles === 'doubles'}
-          onEnterDashboard={handleEnterDashboard}
+          onEnterDashboard={() => setScreen('dashboard')}
         />
       )}
 
-      {step === 4 && (
-        // isOrganizer=true → Dashboard skips PlayerPicker, shows admin controls
+      {screen === 'dashboard' && (
         <PlayerIdentityProvider
           leagueId={activeSettings?.id}
-          isOrganizer={true}
+          isOrganizer={isOrganizerSession}
+          initialPlayer={joinedPlayer}
         >
           <Dashboard settings={activeSettings} leagueData={leagueData} />
         </PlayerIdentityProvider>

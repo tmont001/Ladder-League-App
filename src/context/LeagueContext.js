@@ -76,6 +76,8 @@ function hydrateMatch(dbMatch, participants, isDoubles) {
 
 export function LeagueProvider({ settings, initialLeagueData, children }) {
   const leagueId = settings?.id;
+  // Only hit Supabase for real UUIDs — local-* IDs mean we're running in-memory
+  const isLive = leagueId && !String(leagueId).startsWith('local-');
   const isDoubles = settings?.singlesOrDoubles === 'doubles';
 
   const [participants, setParticipants] = useState(
@@ -86,14 +88,12 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   );
   const [challenges, setChallenges] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [loadingDb, setLoadingDb] = useState(!!leagueId);
+  const [loadingDb, setLoadingDb] = useState(false); // in-memory never needs loading
 
   // ── Load from DB ─────────────────────────────────────────
   useEffect(() => {
-    if (!leagueId) {
-      setLoadingDb(false);
-      return;
-    }
+    if (!isLive) return;
+    setLoadingDb(true);
     async function load() {
       try {
         const [dbPlayers, dbTeams, dbMatches, dbChallenges] = await Promise.all(
@@ -114,11 +114,11 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
       }
     }
     load();
-  }, [leagueId, isDoubles]);
+  }, [leagueId, isLive, isDoubles]);
 
   // ── Real-time: matches ────────────────────────────────────
   useEffect(() => {
-    if (!leagueId) return;
+    if (!isLive) return;
     const ch = supabase
       .channel(`matches-${leagueId}`)
       .on(
@@ -142,11 +142,11 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
       )
       .subscribe();
     return () => supabase.removeChannel(ch);
-  }, [leagueId]);
+  }, [leagueId, isLive]);
 
   // ── Real-time: challenges ─────────────────────────────────
   useEffect(() => {
-    if (!leagueId) return;
+    if (!isLive) return;
     const ch = supabase
       .channel(`challenges-${leagueId}`)
       .on(
@@ -168,7 +168,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
       )
       .subscribe();
     return () => supabase.removeChannel(ch);
-  }, [leagueId]);
+  }, [leagueId, isLive]);
 
   // ── Derived ───────────────────────────────────────────────
   const hydratedMatches = useMemo(
@@ -197,7 +197,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
 
   const submitResult = useCallback(
     async (matchId, result, submittedByPlayerId) => {
-      if (leagueId) {
+      if (isLive) {
         await submitMatchResult(matchId, result, submittedByPlayerId);
       } else {
         setRawMatches((prev) =>
@@ -214,12 +214,12 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         );
       }
     },
-    [leagueId],
+    [isLive],
   );
 
   const confirmResult = useCallback(
     async (matchId, confirmedByPlayerId) => {
-      if (leagueId) {
+      if (isLive) {
         await confirmMatchResult(matchId, confirmedByPlayerId);
       } else {
         setRawMatches((prev) =>
@@ -229,12 +229,12 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         );
       }
     },
-    [leagueId],
+    [isLive],
   );
 
   const disputeResult = useCallback(
     async (matchId, openedByPlayerId, reason, counterScore) => {
-      if (leagueId) {
+      if (isLive) {
         await openDispute(matchId, openedByPlayerId, reason, counterScore);
       } else {
         setRawMatches((prev) =>
@@ -244,12 +244,12 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         );
       }
     },
-    [leagueId],
+    [isLive],
   );
 
   const resolveMatch = useCallback(
     async (matchId) => {
-      if (leagueId) {
+      if (isLive) {
         await skipMatch(matchId);
       } else {
         setRawMatches((prev) =>
@@ -257,13 +257,13 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         );
       }
     },
-    [leagueId],
+    [isLive],
   );
 
   const addChallenge = useCallback(
     async (challengerParticipant, challengedParticipant) => {
       const noResponseDays = settings?.challengeRules?.noResponseDays ?? 5;
-      if (leagueId) {
+      if (isLive) {
         const challenge = await createChallenge(
           leagueId,
           challengerParticipant,
@@ -303,25 +303,25 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         setRawMatches((prev) => [...prev, m]);
       }
     },
-    [leagueId, currentRoundNumber, settings],
+    [isLive, leagueId, currentRoundNumber, settings],
   );
 
   const loadNotifications = useCallback(
     async (playerId) => {
-      if (!leagueId || !playerId) return;
+      if (!isLive || !playerId) return;
       const data = await fetchNotifications(playerId);
       setNotifications(data);
     },
-    [leagueId],
+    [isLive],
   );
 
   const readAllNotifications = useCallback(
     async (playerId) => {
-      if (!leagueId || !playerId) return;
+      if (!isLive || !playerId) return;
       await markNotificationsRead(playerId);
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     },
-    [leagueId],
+    [isLive],
   );
 
   return (
