@@ -306,6 +306,37 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
     [isLive, leagueId, currentRoundNumber, settings],
   );
 
+  // Add a scheduled match from messenger event proposals
+  const addScheduledMatch = useCallback(
+    async (p1Participant, p2Participant, eventDate) => {
+      const m = {
+        id: generateId(),
+        round: currentRoundNumber,
+        round_number: currentRoundNumber,
+        type: 'scheduled',
+        is_bye: false,
+        isBye: false,
+        p1: p1Participant,
+        p2: p2Participant,
+        p1_player_id: p1Participant?.id || null,
+        p2_player_id: p2Participant?.id || null,
+        status: 'pending',
+        result: null,
+        scheduledDate: eventDate || null,
+      };
+      if (isLive) {
+        try {
+          await createMatches(leagueId, [{ ...m }]);
+        } catch {
+          setRawMatches((prev) => [...prev, m]);
+        }
+      } else {
+        setRawMatches((prev) => [...prev, m]);
+      }
+    },
+    [isLive, leagueId, currentRoundNumber],
+  );
+
   const loadNotifications = useCallback(
     async (playerId) => {
       if (!isLive || !playerId) return;
@@ -345,6 +376,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         addChallenge,
         loadNotifications,
         readAllNotifications,
+        addScheduledMatch,
       }}
     >
       {children}

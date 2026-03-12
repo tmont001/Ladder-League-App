@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import Portal from '../shared/Portal';
 
-const FORMAT_LABELS = {
-  best_of_1: 'Best of 1',
-  best_of_3: 'Best of 3',
-  best_of_5: 'Best of 5',
-};
+const FORMAT_OPTS = [
+  { value: 'best_of_1', label: 'Best of 1' },
+  { value: 'best_of_3', label: 'Best of 3' },
+  { value: 'best_of_5', label: 'Best of 5' },
+];
 const GAMES_OPTS = [
   { value: 4, label: '4 games' },
   { value: 6, label: '6 games (standard)' },
@@ -22,7 +22,7 @@ const DECIDING_OPTS = [
   { value: 'match_tiebreak', label: 'Match tiebreak (to 10)' },
 ];
 const PB_POINTS = [
-  { value: 11, label: '11 pts' },
+  { value: 11, label: '11 pts (standard)' },
   { value: 15, label: '15 pts' },
   { value: 21, label: '21 pts' },
 ];
@@ -32,11 +32,6 @@ const TIME_OPTS = [
   { value: '90', label: '90 min' },
   { value: '120', label: '120 min' },
 ];
-const FORMAT_OPTS = [
-  { value: 'best_of_1', label: 'Best of 1' },
-  { value: 'best_of_3', label: 'Best of 3' },
-  { value: 'best_of_5', label: 'Best of 5' },
-];
 const CHALLENGE_OPTS = [
   { value: 1, label: '1 spot' },
   { value: 2, label: '2 spots' },
@@ -45,14 +40,39 @@ const CHALLENGE_OPTS = [
   { value: 5, label: '5 spots' },
 ];
 
-function SettingsRow({ label, sub, children }) {
+function ToggleRow({ label, sub, checked, onChange }) {
   return (
     <div className="settings-row">
       <div className="settings-row-left">
         <div className="settings-row-label">{label}</div>
         {sub && <div className="settings-row-sub">{sub}</div>}
       </div>
-      <div>{children}</div>
+      <label className="toggle" style={{ display: 'inline-block' }}>
+        <input
+          type="checkbox"
+          checked={!!checked}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <span className="toggle-track" />
+      </label>
+    </div>
+  );
+}
+
+function SelectRow({ label, sub, value, onChange, options }) {
+  return (
+    <div className="settings-row">
+      <div className="settings-row-left">
+        <div className="settings-row-label">{label}</div>
+        {sub && <div className="settings-row-sub">{sub}</div>}
+      </div>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -64,18 +84,13 @@ function SettingsModal({ settings, onSave, onClose }) {
   const isPickleball = s.sport === 'pickleball';
   const isMultiSet = s.format === 'best_of_3' || s.format === 'best_of_5';
 
-  const handleSave = () => {
-    onSave(s);
-    onClose();
-  };
-
   return (
     <Portal>
       <div className="modal-overlay" onClick={onClose}>
         <div
           className="modal modal-lg"
           onClick={(e) => e.stopPropagation()}
-          style={{ maxHeight: '90vh', overflow: 'auto' }}
+          style={{ maxHeight: '90vh', overflowY: 'auto' }}
         >
           <div className="modal-header">
             <div className="modal-title">League Settings</div>
@@ -102,152 +117,89 @@ function SettingsModal({ settings, onSave, onClose }) {
             <div className="settings-section">
               <div className="settings-section-title">Match Format</div>
 
-              <SettingsRow label="Sets / Games format">
-                <select
-                  value={s.format}
-                  onChange={(e) => set('format', e.target.value)}
-                >
-                  {FORMAT_OPTS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </SettingsRow>
+              <SelectRow
+                label="Sets / Games"
+                value={s.format}
+                onChange={(v) => set('format', v)}
+                options={FORMAT_OPTS}
+              />
 
               {isTennis && (
                 <>
-                  <SettingsRow
+                  <SelectRow
                     label="Games per set"
-                    sub="Change the length of each set"
-                  >
-                    <select
-                      value={s.gamesPerSet || 6}
-                      onChange={(e) =>
-                        set('gamesPerSet', Number(e.target.value))
-                      }
-                    >
-                      {GAMES_OPTS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </SettingsRow>
-
-                  <SettingsRow label="Tiebreak format">
-                    <select
-                      value={s.tiebreakFormat || 'standard'}
-                      onChange={(e) => set('tiebreakFormat', e.target.value)}
-                    >
-                      {TIEBREAK_OPTS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </SettingsRow>
-
+                    sub="Length of each set"
+                    value={s.gamesPerSet || 6}
+                    onChange={(v) => set('gamesPerSet', Number(v))}
+                    options={GAMES_OPTS}
+                  />
+                  <SelectRow
+                    label="Tiebreak format"
+                    value={s.tiebreakFormat || 'standard'}
+                    onChange={(v) => set('tiebreakFormat', v)}
+                    options={TIEBREAK_OPTS}
+                  />
                   {isMultiSet && (
-                    <SettingsRow label="Deciding set format">
-                      <select
-                        value={s.thirdSetFormat || 'super_tiebreak'}
-                        onChange={(e) => set('thirdSetFormat', e.target.value)}
-                      >
-                        {DECIDING_OPTS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </SettingsRow>
+                    <SelectRow
+                      label="Deciding set format"
+                      value={s.thirdSetFormat || 'super_tiebreak'}
+                      onChange={(v) => set('thirdSetFormat', v)}
+                      options={DECIDING_OPTS}
+                    />
                   )}
-
-                  <SettingsRow
+                  <ToggleRow
                     label="No-Ad scoring"
-                    sub="Deuce points decided by one point"
-                  >
-                    <label
-                      className="toggle"
-                      style={{ display: 'inline-block' }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={s.noAd || false}
-                        onChange={(e) => set('noAd', e.target.checked)}
-                      />
-                      <span className="toggle-track" />
-                    </label>
-                  </SettingsRow>
+                    sub="Deuce decided by one point — speeds up play"
+                    checked={s.noAd || false}
+                    onChange={(v) => set('noAd', v)}
+                  />
                 </>
               )}
 
               {isPickleball && (
-                <SettingsRow label="Points to win a game">
-                  <select
-                    value={s.pickleballPoints || 11}
-                    onChange={(e) =>
-                      set('pickleballPoints', Number(e.target.value))
-                    }
-                  >
-                    {PB_POINTS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </SettingsRow>
+                <SelectRow
+                  label="Points to win a game"
+                  value={s.pickleballPoints || 11}
+                  onChange={(v) => set('pickleballPoints', Number(v))}
+                  options={PB_POINTS}
+                />
               )}
 
-              <SettingsRow label="Match time limit">
-                <select
-                  value={s.scoringTime || 'untimed'}
-                  onChange={(e) => set('scoringTime', e.target.value)}
-                >
-                  {TIME_OPTS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </SettingsRow>
+              <SelectRow
+                label="Match time limit"
+                value={s.scoringTime || 'untimed'}
+                onChange={(v) => set('scoringTime', v)}
+                options={TIME_OPTS}
+              />
             </div>
 
             {/* League rules */}
             <div className="settings-section">
               <div className="settings-section-title">League Rules</div>
 
-              <SettingsRow
-                label="Challenge window"
-                sub="How many spots above a player can be challenged"
-              >
-                <select
-                  value={s.challengeSpots || 2}
-                  onChange={(e) =>
-                    set('challengeSpots', Number(e.target.value))
-                  }
-                >
-                  {CHALLENGE_OPTS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </SettingsRow>
+              <ToggleRow
+                label="Enable challenges"
+                sub="Allow players to challenge opponents within the challenge window"
+                checked={s.challengesEnabled !== false}
+                onChange={(v) => set('challengesEnabled', v)}
+              />
 
-              <SettingsRow
+              {s.challengesEnabled !== false && (
+                <SelectRow
+                  label="Challenge window"
+                  sub="How many spots above a player can challenge"
+                  value={s.challengeSpots || 2}
+                  onChange={(v) => set('challengeSpots', Number(v))}
+                  options={CHALLENGE_OPTS}
+                />
+              )}
+
+              <ToggleRow
                 label="Auto-advance rounds"
                 sub="Generate next round when all matches are done"
-              >
-                <label className="toggle" style={{ display: 'inline-block' }}>
-                  <input
-                    type="checkbox"
-                    checked={s.autoAdvance !== false}
-                    onChange={(e) => set('autoAdvance', e.target.checked)}
-                  />
-                  <span className="toggle-track" />
-                </label>
-              </SettingsRow>
+                checked={s.autoAdvance !== false}
+                onChange={(v) => set('autoAdvance', v)}
+              />
             </div>
           </div>
 
@@ -255,7 +207,13 @@ function SettingsModal({ settings, onSave, onClose }) {
             <button className="btn-back" onClick={onClose}>
               Cancel
             </button>
-            <button className="btn-next" onClick={handleSave}>
+            <button
+              className="btn-next"
+              onClick={() => {
+                onSave(s);
+                onClose();
+              }}
+            >
               Save Changes
             </button>
           </div>

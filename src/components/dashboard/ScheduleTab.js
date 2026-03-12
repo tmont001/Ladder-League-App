@@ -284,8 +284,9 @@ function DisputeModal({ match, onClose }) {
 }
 
 function ScheduleTab() {
-  const { rounds, confirmResult, resolveMatch } = useLeague();
+  const { rounds, confirmResult, resolveMatch, settings } = useLeague();
   const { currentPlayer } = usePlayerIdentity();
+  const challengesEnabled = settings?.challengesEnabled !== false;
   const [scoreMatch, setScoreMatch] = useState(null);
   const [disputeMatch, setDisputeMatch] = useState(null);
   const [showChallenge, setShowChallenge] = useState(false);
@@ -300,9 +301,14 @@ function ScheduleTab() {
   return (
     <div className="schedule-wrapper">
       <div className="schedule-toolbar">
-        <button className="btn-outline" onClick={() => setShowChallenge(true)}>
-          + Issue Challenge
-        </button>
+        {challengesEnabled && (
+          <button
+            className="btn-outline"
+            onClick={() => setShowChallenge(true)}
+          >
+            + Issue Challenge
+          </button>
+        )}
       </div>
       {rounds.map((round) => (
         <RoundSection
