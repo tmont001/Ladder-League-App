@@ -290,26 +290,37 @@ function DashboardContent({ onSettingsSave }) {
       </div>
 
       {/* Nav Tabs */}
-      <div className="dashboard-nav">
+      <nav
+        className="dashboard-nav"
+        aria-label="Dashboard sections"
+        role="tablist"
+      >
         {TABS.map((tab) => (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
             className={`nav-tab ${activeTab === tab.id ? 'nav-tab-active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
-            {tab.icon}
+            <span aria-hidden="true">{tab.icon}</span>
             {tab.label}
           </button>
         ))}
-      </div>
+      </nav>
 
       {/* Tab Content */}
-      <div className="dashboard-content">
+      <main
+        id="main-content"
+        className="dashboard-content"
+        role="tabpanel"
+        aria-live="polite"
+      >
         {activeTab === 'standings' && <StandingsTab />}
         {activeTab === 'schedule' && <ScheduleTab />}
         {activeTab === 'stats' && <StatsTab />}
         {activeTab === 'messages' && <MessengerTab />}
-      </div>
+      </main>
     </div>
   );
 }

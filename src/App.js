@@ -115,61 +115,63 @@ function AppContent() {
 
   return (
     <div className="app">
-      {screen === 'home' && (
-        <HomeScreen
-          onCreateLeague={() => setScreen('setup1')}
-          onJoinLeague={() => setScreen('join')}
-        />
-      )}
-
-      {screen === 'join' && (
-        <PlayerJoinScreen
-          onJoined={handleJoined}
-          onBack={() => setScreen('home')}
-        />
-      )}
-
-      {screen === 'setup1' && (
-        <LeagueSetupStep1
-          onNext={handleStep1Next}
-          initialSettings={leagueSettings}
-          onBack={() => setScreen('home')}
-        />
-      )}
-
-      {screen === 'setup2' && (
-        <LeagueSetupStep2
-          settings={leagueSettings}
-          onLaunch={handleLaunch}
-          onBack={() => setScreen('setup1')}
-          externalLaunching={launching}
-        />
-      )}
-
-      {screen === 'codes' && leagueData && (
-        <LaunchCodesScreen
-          leagueName={activeSettings?.leagueName}
-          participants={leagueData.seededParticipants}
-          isDoubles={activeSettings?.singlesOrDoubles === 'doubles'}
-          onEnterDashboard={() => setScreen('dashboard')}
-        />
-      )}
-
-      {screen === 'dashboard' && (
-        <PlayerIdentityProvider
-          leagueId={activeSettings?.id}
-          isOrganizer={isOrganizerSession}
-          initialPlayer={joinedPlayer}
-        >
-          <Dashboard
-            settings={activeSettings}
-            leagueData={leagueData}
-            onSettingsSave={(updated) =>
-              setEffectiveSettings((prev) => ({ ...prev, ...updated }))
-            }
+      <main id="main-content">
+        {screen === 'home' && (
+          <HomeScreen
+            onCreateLeague={() => setScreen('setup1')}
+            onJoinLeague={() => setScreen('join')}
           />
-        </PlayerIdentityProvider>
-      )}
+        )}
+
+        {screen === 'join' && (
+          <PlayerJoinScreen
+            onJoined={handleJoined}
+            onBack={() => setScreen('home')}
+          />
+        )}
+
+        {screen === 'setup1' && (
+          <LeagueSetupStep1
+            onNext={handleStep1Next}
+            initialSettings={leagueSettings}
+            onBack={() => setScreen('home')}
+          />
+        )}
+
+        {screen === 'setup2' && (
+          <LeagueSetupStep2
+            settings={leagueSettings}
+            onLaunch={handleLaunch}
+            onBack={() => setScreen('setup1')}
+            externalLaunching={launching}
+          />
+        )}
+
+        {screen === 'codes' && leagueData && (
+          <LaunchCodesScreen
+            leagueName={activeSettings?.leagueName}
+            participants={leagueData.seededParticipants}
+            isDoubles={activeSettings?.singlesOrDoubles === 'doubles'}
+            onEnterDashboard={() => setScreen('dashboard')}
+          />
+        )}
+
+        {screen === 'dashboard' && (
+          <PlayerIdentityProvider
+            leagueId={activeSettings?.id}
+            isOrganizer={isOrganizerSession}
+            initialPlayer={joinedPlayer}
+          >
+            <Dashboard
+              settings={activeSettings}
+              leagueData={leagueData}
+              onSettingsSave={(updated) =>
+                setEffectiveSettings((prev) => ({ ...prev, ...updated }))
+              }
+            />
+          </PlayerIdentityProvider>
+        )}
+      </main>
     </div>
   );
 }

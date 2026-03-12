@@ -1,12 +1,78 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="theme-dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Ladder League</title>
+    <meta
+      name="theme-color"
+      content="#0f1623"
+      media="(prefers-color-scheme: dark)"
+    />
+    <meta
+      name="theme-color"
+      content="#f4f6fb"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="description"
+      content="Ladder League — manage tennis and pickleball ladder leagues. Track standings, schedule matches, and coordinate with players."
+    />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="Ladder League" />
+    <meta
+      property="og:description"
+      content="Manage tennis and pickleball ladder leagues online."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="canonical" href="/" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Ladder League — Tennis &amp; Pickleball League Manager</title>
+
+    <!-- Preconnect for Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Critical font load -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+    />
+
+    <style>
+      /* Prevent flash of unstyled content */
+      html {
+        background: #0f1623;
+      }
+      html.theme-light {
+        background: #f4f6fb;
+      }
+      /* Skip link for accessibility */
+      .skip-link {
+        position: absolute;
+        top: -40px;
+        left: 8px;
+        background: #4d9fff;
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-family: Inter, sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        z-index: 9999;
+        transition: top 0.2s;
+        text-decoration: none;
+      }
+      .skip-link:focus {
+        top: 8px;
+      }
+    </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <noscript>
+      <p style="font-family: sans-serif; text-align: center; padding: 2rem">
+        You need to enable JavaScript to run Ladder League.
+      </p>
+    </noscript>
     <div id="root"></div>
   </body>
 </html>

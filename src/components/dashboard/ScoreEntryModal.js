@@ -3,29 +3,23 @@ import React, { useState, useMemo } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 
-// ─── Valid score ranges per sport ─────────────────────────
+// ─── Valid score ranges ───────────────────────────────────
 
-function getTennisP1Options(isSuperTb) {
-  if (isSuperTb) return Array.from({ length: 21 }, (_, i) => i); // 0-20 for super TB
-  return [0, 1, 2, 3, 4, 5, 6, 7]; // 0-7 (7 only for tiebreak)
+function getTennisOptions(isSuperTb) {
+  return isSuperTb
+    ? Array.from({ length: 21 }, (_, i) => i) // 0-20 super tiebreak
+    : [0, 1, 2, 3, 4, 5, 6, 7];
 }
-
-function getTennisP2Options(isSuperTb) {
-  return getTennisP1Options(isSuperTb);
-}
-
 function getPickleballOptions() {
-  return Array.from({ length: 30 }, (_, i) => i); // 0-29
+  return Array.from({ length: 30 }, (_, i) => i);
 }
 
-// Validate a completed tennis set score
 function isValidTennisSet(p1, p2, isSuperTb) {
   if (p1 === '' || p2 === '') return false;
   const a = parseInt(p1, 10),
     b = parseInt(p2, 10);
   if (isNaN(a) || isNaN(b)) return false;
   if (isSuperTb) {
-    // first to 10, win by 2
     const hi = Math.max(a, b),
       lo = Math.min(a, b);
     return hi >= 10 && hi - lo >= 2;
@@ -47,7 +41,6 @@ function isValidPickleballGame(p1, p2) {
   return hi >= 11 && hi - lo >= 2;
 }
 
-// Is this tennis set a tiebreak (7-6)?
 function isTennisSetTiebreak(p1, p2) {
   return (
     (parseInt(p1, 10) === 7 && parseInt(p2, 10) === 6) ||
@@ -62,7 +55,6 @@ function getSetCount(format) {
   return 3;
 }
 
-// For best_of_1, you need 1 set. For best_of_3, you need 2. For best_of_5, you need 3.
 function getSetsNeeded(maxSets) {
   return Math.ceil(maxSets / 2);
 }
@@ -71,21 +63,22 @@ function getParticipantName(p, isDoubles) {
   return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
 }
 
-// ─── Single set score row ────────────────────────────────
+// ─── Single set row ───────────────────────────────────────
 
 function SetScoreRow({
   index,
   sport,
   thirdSetFormat,
   isDeciding,
+  isTied,
   setScore,
   onSetChange,
   p1Name,
   p2Name,
 }) {
   const isTennis = sport === 'tennis';
-  const isSuperTb = isDeciding && thirdSetFormat === 'super_tiebreak';
-
+  // Super tiebreak / deciding set only shown when tied
+  const isSuperTb = isDeciding && isTied && thirdSetFormat === 'super_tiebreak';
   const { p1, p2, tbP1, tbP2 } = setScore;
 
   const isValid = isTennis
@@ -101,40 +94,40 @@ function SetScoreRow({
       ? `Set ${index + 1}`
       : `Game ${index + 1}`;
 
-  // Build score options
-  const p1Opts = isTennis
-    ? getTennisP1Options(isSuperTb)
-    : getPickleballOptions();
-  const p2Opts = isTennis
-    ? getTennisP2Options(isSuperTb)
-    : getPickleballOptions();
-
-  // Tiebreak score options: first to 7 (win by 2), displayed as p1score/p2score
-  const tbOpts = Array.from({ length: 15 }, (_, i) => i); // 0-14
-
+  const opts = isTennis ? getTennisOptions(isSuperTb) : getPickleballOptions();
+  const tbOpts = Array.from({ length: 15 }, (_, i) => i);
   const hasScore = p1 !== '' && p2 !== '';
+  const p1Short = p1Name.split(' ')[0];
+  const p2Short = p2Name.split(' ')[0];
 
   return (
-    <div className={`set-row ${hasScore && !isValid ? 'set-row-invalid' : ''}`}>
-      <div className="set-label">
+    <div
+      className={`set-row${hasScore && !isValid ? ' set-row-invalid' : ''}`}
+      role="group"
+      aria-label={`${label} score`}
+    >
+      <div className="set-label" aria-hidden="true">
         {label}
-        {isDeciding && !isSuperTb && (
+        {isDeciding && isTied && !isSuperTb && (
           <span className="set-deciding-tag">deciding</span>
         )}
       </div>
 
       <div>
         <div className="set-dual-inputs">
-          {/* P1 column */}
           <div className="set-player-col">
-            <span className="set-player-label">{p1Name.split(' ')[0]}</span>
+            <label className="set-player-label" htmlFor={`set-${index}-p1`}>
+              {p1Short}
+            </label>
             <select
+              id={`set-${index}-p1`}
               className="set-player-select"
               value={p1}
               onChange={(e) => onSetChange(index, 'p1', e.target.value)}
+              aria-label={`${label} score for ${p1Name}`}
             >
               <option value="">—</option>
-              {p1Opts.map((v) => (
+              {opts.map((v) => (
                 <option key={v} value={v}>
                   {v}
                 </option>
@@ -142,18 +135,23 @@ function SetScoreRow({
             </select>
           </div>
 
-          <div className="set-dual-sep">–</div>
+          <div className="set-dual-sep" aria-hidden="true">
+            –
+          </div>
 
-          {/* P2 column */}
           <div className="set-player-col">
-            <span className="set-player-label">{p2Name.split(' ')[0]}</span>
+            <label className="set-player-label" htmlFor={`set-${index}-p2`}>
+              {p2Short}
+            </label>
             <select
+              id={`set-${index}-p2`}
               className="set-player-select"
               value={p2}
               onChange={(e) => onSetChange(index, 'p2', e.target.value)}
+              aria-label={`${label} score for ${p2Name}`}
             >
               <option value="">—</option>
-              {p2Opts.map((v) => (
+              {opts.map((v) => (
                 <option key={v} value={v}>
                   {v}
                 </option>
@@ -162,23 +160,33 @@ function SetScoreRow({
           </div>
 
           {hasScore && (
-            <span className={`set-validity ${isValid ? 'valid' : 'invalid'}`}>
+            <span
+              className={`set-validity ${isValid ? 'valid' : 'invalid'}`}
+              aria-label={isValid ? 'Valid score' : 'Invalid score'}
+            >
               {isValid ? '✓' : '✗'}
             </span>
           )}
         </div>
 
-        {/* Tiebreak score row — appears when set is 7-6 */}
         {showTb && (
-          <div className="tb-score-row">
+          <div
+            className="tb-score-row"
+            role="group"
+            aria-label="Tiebreak score"
+          >
             <span className="tb-label">Tiebreak score</span>
             <div className="set-dual-inputs">
               <div className="set-player-col">
-                <span className="set-player-label">{p1Name.split(' ')[0]}</span>
+                <label className="set-player-label" htmlFor={`tb-${index}-p1`}>
+                  {p1Short}
+                </label>
                 <select
+                  id={`tb-${index}-p1`}
                   className="set-player-select"
                   value={tbP1}
                   onChange={(e) => onSetChange(index, 'tbP1', e.target.value)}
+                  aria-label={`Tiebreak score for ${p1Name}`}
                 >
                   <option value="">—</option>
                   {tbOpts.map((v) => (
@@ -188,13 +196,19 @@ function SetScoreRow({
                   ))}
                 </select>
               </div>
-              <div className="set-dual-sep">–</div>
+              <div className="set-dual-sep" aria-hidden="true">
+                –
+              </div>
               <div className="set-player-col">
-                <span className="set-player-label">{p2Name.split(' ')[0]}</span>
+                <label className="set-player-label" htmlFor={`tb-${index}-p2`}>
+                  {p2Short}
+                </label>
                 <select
+                  id={`tb-${index}-p2`}
                   className="set-player-select"
                   value={tbP2}
                   onChange={(e) => onSetChange(index, 'tbP2', e.target.value)}
+                  aria-label={`Tiebreak score for ${p2Name}`}
                 >
                   <option value="">—</option>
                   {tbOpts.map((v) => (
@@ -204,7 +218,7 @@ function SetScoreRow({
                   ))}
                 </select>
               </div>
-              <span />
+              <span aria-hidden="true" />
             </div>
           </div>
         )}
@@ -228,7 +242,6 @@ function ScoreEntryModal({ match, onClose }) {
   const p1Name = match.p1 ? getParticipantName(match.p1, isDoubles) : '?';
   const p2Name = match.p2 ? getParticipantName(match.p2, isDoubles) : '?';
 
-  // Each set: { p1, p2, tbP1, tbP2 }
   const [sets, setSets] = useState(
     Array.from({ length: maxSets }, () => ({
       p1: '',
@@ -244,7 +257,6 @@ function ScoreEntryModal({ match, onClose }) {
   const handleSetChange = (idx, field, val) => {
     setSets((prev) => {
       const next = prev.map((s, i) => (i === idx ? { ...s, [field]: val } : s));
-      // Reset tiebreak if set score changed
       if (field === 'p1' || field === 'p2') {
         next[idx] = { ...next[idx], tbP1: '', tbP2: '' };
       }
@@ -253,26 +265,31 @@ function ScoreEntryModal({ match, onClose }) {
     setError('');
   };
 
-  // How many sets each player has won so far (for hiding unneeded rows)
-  const runningTotals = sets.reduce(
-    (acc, s, i) => {
+  // ── Compute running set wins after each set index ─────────
+  // Returns [p1wins, p2wins] considering only sets 0..i-1
+  function winsAfter(beforeIdx) {
+    let p1 = 0,
+      p2 = 0;
+    for (let j = 0; j < beforeIdx; j++) {
+      const s = sets[j];
       const isSuperTb =
-        i === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
+        maxSets > 1 && j === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
       const valid = isTennis
         ? isValidTennisSet(s.p1, s.p2, isSuperTb)
         : isValidPickleballGame(s.p1, s.p2);
-      if (!valid) return acc;
-      const a = parseInt(s.p1, 10),
-        b = parseInt(s.p2, 10);
-      return [acc[0] + (a > b ? 1 : 0), acc[1] + (b > a ? 1 : 0)];
-    },
-    [0, 0],
-  );
+      if (valid) {
+        const a = parseInt(s.p1, 10),
+          b = parseInt(s.p2, 10);
+        if (a > b) p1++;
+        else p2++;
+      }
+    }
+    return [p1, p2];
+  }
 
   // ── Compute final result ─────────────────────────────────
   const result = useMemo(() => {
     if (!match.p1 || !match.p2) return null;
-
     let p1SetsWon = 0,
       p2SetsWon = 0;
     let p1GamesTotal = 0,
@@ -281,9 +298,13 @@ function ScoreEntryModal({ match, onClose }) {
 
     for (let i = 0; i < maxSets; i++) {
       const s = sets[i];
-      // Super tiebreak only applies on the deciding set of a multi-set match
+      // Deciding set is super tiebreak only when tied
+      const isTied = p1SetsWon === p2SetsWon && p1SetsWon === setsNeeded - 1;
       const isSuperTb =
-        maxSets > 1 && i === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
+        maxSets > 1 &&
+        i === maxSets - 1 &&
+        isTied &&
+        thirdSetFormat === 'super_tiebreak';
       const valid = isTennis
         ? isValidTennisSet(s.p1, s.p2, isSuperTb)
         : isValidPickleballGame(s.p1, s.p2);
@@ -340,53 +361,58 @@ function ScoreEntryModal({ match, onClose }) {
     } catch (err) {
       const msg =
         err?.message ||
-        (typeof err === 'string'
-          ? err
-          : 'Failed to submit score. Please try again.');
+        (typeof err === 'string' ? err : 'Failed to submit. Please try again.');
       setError(msg);
     }
   };
 
   return (
     <Portal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-overlay"
+        onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="score-modal-title"
+      >
         <div className="modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
-            <div className="modal-title">Enter Score</div>
-            <button className="modal-close" onClick={onClose}>
+            <div className="modal-title" id="score-modal-title">
+              Enter Score
+            </div>
+            <button
+              className="modal-close"
+              onClick={onClose}
+              aria-label="Close"
+            >
               ✕
             </button>
           </div>
 
           <div className="modal-body">
-            <div className="modal-matchup">
+            <div
+              className="modal-matchup"
+              aria-label={`Match: ${p1Name} vs ${p2Name}`}
+            >
               <span className="modal-player">{p1Name}</span>
-              <span className="modal-vs">vs</span>
+              <span className="modal-vs" aria-hidden="true">
+                vs
+              </span>
               <span className="modal-player">{p2Name}</span>
             </div>
 
             <div className="set-rows">
               {sets.map((s, i) => {
-                // Hide this set row if the match was already decided by previous sets
-                let p1 = 0,
-                  p2 = 0;
-                for (let j = 0; j < i; j++) {
-                  const prev = sets[j];
-                  const isSuperTb =
-                    maxSets > 1 &&
-                    j === maxSets - 1 &&
-                    thirdSetFormat === 'super_tiebreak';
-                  const valid = isTennis
-                    ? isValidTennisSet(prev.p1, prev.p2, isSuperTb)
-                    : isValidPickleballGame(prev.p1, prev.p2);
-                  if (valid) {
-                    const a = parseInt(prev.p1, 10),
-                      b = parseInt(prev.p2, 10);
-                    if (a > b) p1++;
-                    else p2++;
-                  }
-                }
-                if (p1 >= setsNeeded || p2 >= setsNeeded) return null;
+                const [p1w, p2w] = winsAfter(i);
+                // Hide once match is decided
+                if (p1w >= setsNeeded || p2w >= setsNeeded) return null;
+
+                const isDeciding = maxSets > 1 && i === maxSets - 1;
+                // Deciding set only shown if we actually reach a tie
+                const isTied = p1w === p2w && p1w === setsNeeded - 1;
+
+                // Only render the deciding set row if we're tied (or it's not the deciding set)
+                if (isDeciding && !isTied) return null;
 
                 return (
                   <SetScoreRow
@@ -394,7 +420,8 @@ function ScoreEntryModal({ match, onClose }) {
                     index={i}
                     sport={sport}
                     thirdSetFormat={thirdSetFormat}
-                    isDeciding={maxSets > 1 && i === maxSets - 1}
+                    isDeciding={isDeciding}
+                    isTied={isTied}
                     setScore={s}
                     onSetChange={handleSetChange}
                     p1Name={p1Name}
@@ -405,25 +432,31 @@ function ScoreEntryModal({ match, onClose }) {
             </div>
 
             {winnerName && (
-              <div className="winner-preview">
+              <div className="winner-preview" role="status" aria-live="polite">
                 🏆 <strong>{winnerName}</strong> wins
               </div>
             )}
 
-            {error && <div className="modal-error">{error}</div>}
+            {error && (
+              <div className="modal-error" role="alert">
+                {error}
+              </div>
+            )}
 
             <div className="grid-2">
               <div className="field-group">
-                <label>Date Played</label>
+                <label htmlFor="score-date">Date Played</label>
                 <input
+                  id="score-date"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>
               <div className="field-group">
-                <label>Location</label>
+                <label htmlFor="score-location">Location</label>
                 <input
+                  id="score-location"
                   type="text"
                   placeholder="e.g. Court 3"
                   value={location}
@@ -441,6 +474,7 @@ function ScoreEntryModal({ match, onClose }) {
               className="btn-next"
               onClick={handleSubmit}
               disabled={!result}
+              aria-disabled={!result}
             >
               Submit Score
             </button>
