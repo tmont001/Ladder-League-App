@@ -33,6 +33,7 @@ function AppContent() {
   const [launching, setLaunching] = useState(false);
   // Player who joined via code (not the organizer)
   const [joinedPlayer, setJoinedPlayer] = useState(null);
+  const [selectedSport, setSelectedSport] = useState('tennis');
 
   // ── Create flow ──────────────────────────────────────────
   const handleStep1Next = (settings) => {
@@ -110,78 +111,77 @@ function AppContent() {
   };
 
   const activeSettings = effectiveSettings || leagueSettings;
+  const activeSport = activeSettings?.sport || selectedSport;
   // Organizer: came through create flow. Player: came through join flow.
   const isOrganizerSession = screen === 'dashboard' && !joinedPlayer;
 
   return (
-    <div className="app">
-      <main id="main-content">
-        {screen === 'home' && (
-          <HomeScreen
-            onCreateLeague={() => setScreen('setup1')}
-            onJoinLeague={() => setScreen('join')}
-          />
-        )}
-
-        {screen === 'join' && (
-          <PlayerJoinScreen
-            onJoined={handleJoined}
-            onBack={() => setScreen('home')}
-          />
-        )}
-
-        {screen === 'setup1' && (
-          <LeagueSetupStep1
-            onNext={handleStep1Next}
-            initialSettings={leagueSettings}
-            onBack={() => setScreen('home')}
-          />
-        )}
-
-        {screen === 'setup2' && (
-          <LeagueSetupStep2
-            settings={leagueSettings}
-            onLaunch={handleLaunch}
-            onBack={() => setScreen('setup1')}
-            externalLaunching={launching}
-          />
-        )}
-
-        {screen === 'codes' && leagueData && (
-          <LaunchCodesScreen
-            leagueName={activeSettings?.leagueName}
-            participants={leagueData.seededParticipants}
-            isDoubles={activeSettings?.singlesOrDoubles === 'doubles'}
-            onEnterDashboard={() => setScreen('dashboard')}
-          />
-        )}
-
-        {screen === 'dashboard' && (
-          <PlayerIdentityProvider
-            leagueId={activeSettings?.id}
-            isOrganizer={isOrganizerSession}
-            initialPlayer={joinedPlayer}
-          >
-            <Dashboard
-              settings={activeSettings}
-              leagueData={leagueData}
-              onSettingsSave={(updated) =>
-                setEffectiveSettings((prev) => ({ ...prev, ...updated }))
-              }
+    <ThemeProvider sport={activeSport}>
+      <div className="app">
+        <main id="main-content">
+          {screen === 'home' && (
+            <HomeScreen
+              onCreateLeague={() => setScreen('setup1')}
+              onJoinLeague={() => setScreen('join')}
             />
-          </PlayerIdentityProvider>
-        )}
-      </main>
-    </div>
-  );
-}
+          )}
 
-function App() {
-  return (
-    <ThemeProvider>
-      <AppContent />
+          {screen === 'join' && (
+            <PlayerJoinScreen
+              onJoined={handleJoined}
+              onBack={() => setScreen('home')}
+            />
+          )}
+
+          {screen === 'setup1' && (
+            <LeagueSetupStep1
+              onNext={handleStep1Next}
+              initialSettings={leagueSettings}
+              onBack={() => setScreen('home')}
+              onSportChange={setSelectedSport}
+            />
+          )}
+
+          {screen === 'setup2' && (
+            <LeagueSetupStep2
+              settings={leagueSettings}
+              onLaunch={handleLaunch}
+              onBack={() => setScreen('setup1')}
+              externalLaunching={launching}
+            />
+          )}
+
+          {screen === 'codes' && leagueData && (
+            <LaunchCodesScreen
+              leagueName={activeSettings?.leagueName}
+              participants={leagueData.seededParticipants}
+              isDoubles={activeSettings?.singlesOrDoubles === 'doubles'}
+              onEnterDashboard={() => setScreen('dashboard')}
+            />
+          )}
+
+          {screen === 'dashboard' && (
+            <PlayerIdentityProvider
+              leagueId={activeSettings?.id}
+              isOrganizer={isOrganizerSession}
+              initialPlayer={joinedPlayer}
+            >
+              <Dashboard
+                settings={activeSettings}
+                leagueData={leagueData}
+                onSettingsSave={(updated) =>
+                  setEffectiveSettings((prev) => ({ ...prev, ...updated }))
+                }
+              />
+            </PlayerIdentityProvider>
+          )}
+        </main>
+      </div>
     </ThemeProvider>
   );
+}
+function App() {
+  return <AppContent />;
 }
 
 export default App;

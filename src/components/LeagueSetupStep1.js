@@ -54,7 +54,7 @@ const TIME_OPTS = [
   { value: '120', label: '120 min limit' },
 ];
 
-function LeagueSetupStep1({ onNext, initialSettings, onBack }) {
+function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
   const [s, setS] = useState(
     initialSettings || {
       leagueName: '',
@@ -87,6 +87,7 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack }) {
       sport: id,
       format: sp.formatOptions[1]?.value || sp.formatOptions[0].value,
     }));
+    if (onSportChange) onSportChange(id);
   };
 
   return (

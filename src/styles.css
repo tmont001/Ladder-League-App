@@ -3431,3 +3431,161 @@ input[type='range']::-webkit-slider-thumb {
   font-size: 0.85rem;
   border-radius: var(--radius-md);
 }
+
+/* ════════════════════════════════════════════════════════════
+   PICKLEBALL SPORT THEME
+   Vivid Cyan + Lime palette — pickleball ball & court colors
+   WCAG AA compliant contrast throughout
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Dark mode + Pickleball ── */
+html.sport-pickleball .theme-dark {
+  --bg: #08181e;
+  --bg-raised: #0d2028;
+  --surface: #112530;
+  --surface-hi: #162e3a;
+  --surface-hov: #1c3848;
+  --text: #e4f8f8;
+  --text-muted: #60aab8;
+  --text-dim: #386878;
+  --accent: #00d4e8;
+  --accent-dim: rgba(0, 212, 232, 0.1);
+  --accent-glow: rgba(0, 212, 232, 0.24);
+  --accent-text: #00d4e8;
+  --success: #7ee83a;
+  --success-dim: rgba(126, 232, 58, 0.1);
+  --gold: #f5d020;
+  --gold-dim: rgba(245, 208, 32, 0.12);
+  --danger: #f06060;
+  --danger-dim: rgba(240, 96, 96, 0.1);
+  --border: rgba(0, 212, 232, 0.14);
+  --border-mid: rgba(0, 212, 232, 0.3);
+  --border-strong: rgba(0, 212, 232, 0.7);
+  --shadow: rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --toggle-off: rgba(54, 104, 120, 0.45);
+  --toggle-knob: #ffffff;
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --code-bg: rgba(0, 212, 232, 0.1);
+}
+
+/* ── Light mode + Pickleball ── */
+html.sport-pickleball .theme-light {
+  --bg: #edf8fa;
+  --bg-raised: #ffffff;
+  --surface: #ffffff;
+  --surface-hi: #e0f4f7;
+  --surface-hov: #ccecf2;
+  --text: #062028;
+  --text-muted: #2a7888;
+  --text-dim: #88bbc8;
+  --accent: #0098aa;
+  --accent-dim: rgba(0, 152, 170, 0.09);
+  --accent-glow: rgba(0, 152, 170, 0.22);
+  --accent-text: #007a8a;
+  --success: #3a9e00;
+  --success-dim: rgba(58, 158, 0, 0.09);
+  --gold: #c4960a;
+  --gold-dim: rgba(196, 150, 10, 0.1);
+  --danger: #cc3030;
+  --danger-dim: rgba(204, 48, 48, 0.08);
+  --border: rgba(0, 152, 170, 0.16);
+  --border-mid: rgba(0, 152, 170, 0.32);
+  --border-strong: rgba(0, 152, 170, 0.72);
+  --shadow: rgba(6, 32, 40, 0.1);
+  --shadow-lg: 0 8px 32px rgba(6, 32, 40, 0.13);
+  --toggle-off: rgba(42, 120, 136, 0.28);
+  --toggle-knob: #ffffff;
+  --input-bg: #f0fbfc;
+  --code-bg: rgba(0, 152, 170, 0.07);
+}
+
+/* ── Accent strip: cyan → lime ── */
+html.sport-pickleball .card-accent {
+  background: linear-gradient(90deg, #00d4e8, #7ee83a);
+}
+html.sport-pickleball .theme-light .card-accent {
+  background: linear-gradient(90deg, #0098aa, #3a9e00);
+}
+
+/* ── Progress pip ── */
+html.sport-pickleball .pip-active {
+  background: #00d4e8;
+}
+html.sport-pickleball .theme-light .pip-active {
+  background: #0098aa;
+}
+
+/* ── Nav active tab ── */
+html.sport-pickleball .nav-tab-active {
+  color: #00d4e8;
+  border-bottom-color: #00d4e8;
+}
+html.sport-pickleball .theme-light .nav-tab-active {
+  color: #007a8a;
+  border-bottom-color: #0098aa;
+}
+
+/* ── Background dot grid ── */
+html.sport-pickleball .theme-dark .app::before {
+  background-image: radial-gradient(
+    circle,
+    rgba(0, 212, 232, 0.07) 1px,
+    transparent 1px
+  );
+}
+html.sport-pickleball .theme-light .app::before {
+  background-image: radial-gradient(
+    circle,
+    rgba(0, 152, 170, 0.06) 1px,
+    transparent 1px
+  );
+}
+
+/* ── Primary / action buttons ── */
+html.sport-pickleball .btn-next,
+html.sport-pickleball .btn-primary {
+  background: #00d4e8;
+  color: #062028;
+}
+html.sport-pickleball .theme-light .btn-next,
+html.sport-pickleball .theme-light .btn-primary {
+  background: #0098aa;
+  color: #ffffff;
+}
+
+html.sport-pickleball .btn-add {
+  background: #00d4e8;
+  color: #062028;
+}
+html.sport-pickleball .theme-light .btn-add {
+  background: #0098aa;
+  color: #fff;
+}
+
+html.sport-pickleball .messenger-send {
+  background: #00d4e8;
+  color: #062028;
+}
+html.sport-pickleball .theme-light .messenger-send {
+  background: #0098aa;
+  color: #fff;
+}
+
+html.sport-pickleball .msg-event-accept {
+  background: #00d4e8;
+  color: #062028;
+}
+html.sport-pickleball .theme-light .msg-event-accept {
+  background: #0098aa;
+  color: #fff;
+}
+
+html.sport-pickleball .home-option-primary {
+  background: #00d4e8;
+  color: #062028;
+}
+html.sport-pickleball .theme-light .home-option-primary {
+  background: #0098aa;
+  color: #fff;
+}
