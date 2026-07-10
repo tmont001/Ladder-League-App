@@ -16,4 +16,14 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing Supabase environment variables. ' +
+      'Copy .env.example to .env and fill in your project credentials. ' +
+      'See src/lib/supabase.js for setup instructions.',
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  db: { schema: 'ladder' },
+});

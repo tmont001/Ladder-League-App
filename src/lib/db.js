@@ -1,10 +1,30 @@
 // src/lib/db.js
-// ─────────────────────────────────────────────────────────────
-// All database operations. Components never import supabase directly —
-// they call functions from here. This makes it easy to swap the backend later.
-// ─────────────────────────────────────────────────────────────
-
 import { supabase } from './supabase';
+
+// ══════════════════════════════════════════════════════════════
+// PLAYER QUERY ROUTING
+//
+// ladder.players       — base table; session_token protected by
+//                        column-level grants.  Use for:
+//                          • INSERT (omit session_token — DB DEFAULT fires)
+//                          • UPDATE (status, last_active_at, etc.)
+//                        Do NOT use for SELECT outside of RPCs.
+//
+// ladder.players_public — view (security_invoker=true); omits
+//                         session_token.  Use for ALL normal player
+//                         listings: fetchPlayers, embedded team joins.
+//
+// login_by_token RPC   — SECURITY DEFINER function; returns full row
+//                        including session_token to the caller who
+//                        already holds the token.  Use for: player
+//                        login identity lookup.
+//
+// get_player_codes RPC — SECURITY DEFINER function; returns
+//                        (id, name, role, session_token) for every
+//                        player in a league.  Use for: LaunchCodesScreen,
+//                        PlayersPanel.  Never merge results into the
+//                        shared participants array.
+// ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
 // LEAGUES
@@ -50,7 +70,6 @@ export async function updateLeagueSettings(leagueId, patch) {
   if (error) throw error;
 }
 
-// Converts a DB league row → the settings shape the app expects
 function dbLeagueToSettings(row) {
   return {
     id: row.id,
@@ -72,9 +91,7 @@ function dbLeagueToSettings(row) {
       declinePenaltyEnabled: row.decline_penalty_enabled,
       protectionAfterMatchDays: row.protection_after_match_days,
     },
-    ladderRules: {
-      movementType: row.movement_type,
-    },
+    ladderRules: { movementType: row.movement_type },
     inactivityRules: {
       warningDays: row.inactivity_warning_days,
       dropDays: row.inactivity_drop_days,
@@ -86,6 +103,9 @@ function dbLeagueToSettings(row) {
 // PLAYERS
 // ══════════════════════════════════════════════════════════════
 
+// Creates players and returns safe public fields (no session_token).
+// Callers that need session_token (LaunchCodesScreen, PlayersPanel)
+// must call fetchPlayerCodes() separately after creation.
 export async function createPlayers(leagueId, players) {
   const rows = players.map((p) => ({
     league_id: leagueId,
@@ -94,17 +114,25 @@ export async function createPlayers(leagueId, players) {
     rating_type: p.ratingType || null,
     utr_url: p.utrUrl || null,
     role: p.isAdmin ? 'admin' : 'player',
+    // session_token intentionally omitted — DB DEFAULT fires automatically
   }));
 
-  const { data, error } = await supabase.from('players').insert(rows).select();
+  // Explicit safe column list matches the column-level SELECT grant.
+  // session_token is never requested here; it stays server-side.
+  const { data, error } = await supabase
+    .from('players')
+    .insert(rows)
+    .select('id, league_id, name, rating, rating_type, utr_url, role, status, last_active_at, joined_at');
 
   if (error) throw error;
   return data.map(dbPlayerToPlayer);
 }
 
+// Normal player listing — queries players_public (no session_token).
+// Use everywhere except token-based login or organizer code sheets.
 export async function fetchPlayers(leagueId) {
   const { data, error } = await supabase
-    .from('players')
+    .from('players_public')
     .select('*')
     .eq('league_id', leagueId)
     .order('joined_at', { ascending: true });
@@ -129,18 +157,40 @@ export async function touchPlayerActivity(playerId) {
   if (error) throw error;
 }
 
-// Look up a player by their session token (the "who are you?" login)
+// Player login by session token.
+// Uses the login_by_token SECURITY DEFINER RPC — the only path that
+// returns session_token to the caller.  Direct .eq('session_token')
+// queries are blocked by column-level grants.
+// Returns null (never throws) so callers can handle missing players gracefully.
 export async function fetchPlayerByToken(token) {
-  const { data, error } = await supabase
-    .from('players')
-    .select('*')
-    .eq('session_token', token)
-    .single();
+  if (!token || token.startsWith('local-')) return null;
 
-  if (error) return null;
+  const { data, error } = await supabase
+    .rpc('login_by_token', { p_token: token })
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[fetchPlayerByToken] error:', error.message);
+    return null;
+  }
+  if (!data) return null;
   return dbPlayerToPlayer(data);
 }
 
+// Organizer code sheet — returns (id, name, role, session_token) for
+// every player in the league, ordered by join date.
+// Must only be called from LaunchCodesScreen and PlayersPanel.
+// Results must NEVER be merged into LeagueContext participants.
+export async function fetchPlayerCodes(leagueId) {
+  const { data, error } = await supabase
+    .rpc('get_player_codes', { p_league_id: leagueId });
+  if (error) throw error;
+  return data || [];
+}
+
+// Maps a DB row to the UI player shape.
+// session_token is mapped when present (login_by_token RPC) and is
+// undefined when the row came from players_public or a safe column list.
 function dbPlayerToPlayer(row) {
   return {
     id: row.id,
@@ -149,8 +199,8 @@ function dbPlayerToPlayer(row) {
     rating: row.rating,
     ratingType: row.rating_type,
     utrUrl: row.utr_url,
-    ustaRating: row.rating || '0', // alias kept for matchGenerator compat
-    sessionToken: row.session_token,
+    ustaRating: row.rating || '0',
+    sessionToken: row.session_token,   // undefined for non-token queries
     role: row.role,
     status: row.status,
     lastActiveAt: row.last_active_at,
@@ -163,7 +213,6 @@ function dbPlayerToPlayer(row) {
 // ══════════════════════════════════════════════════════════════
 
 export async function createTeams(leagueId, teams) {
-  // teams = [{ players: [p1, p2] }, ...]  where players already have DB ids
   const results = [];
   for (const team of teams) {
     const { data: teamRow, error: teamErr } = await supabase
@@ -187,6 +236,9 @@ export async function createTeams(leagueId, teams) {
   return results;
 }
 
+// Fetches teams with embedded player data via FK join.
+// PostgREST resolves players(*) using the column-level grant on
+// ladder.players, so session_token is absent from nested player rows.
 export async function fetchTeams(leagueId) {
   const { data: teams, error } = await supabase
     .from('teams')
@@ -194,7 +246,6 @@ export async function fetchTeams(leagueId) {
     .eq('league_id', leagueId);
 
   if (error) throw error;
-
   return teams.map((t) => ({
     id: t.id,
     players: t.team_members.map((m) => dbPlayerToPlayer(m.players)),
@@ -218,7 +269,6 @@ export async function createMatches(leagueId, matches) {
   }));
 
   const { data, error } = await supabase.from('matches').insert(rows).select();
-
   if (error) throw error;
   return data;
 }
@@ -234,7 +284,6 @@ export async function fetchMatches(leagueId) {
   return data;
 }
 
-// Submit a score — sets status to 'awaiting_confirmation'
 export async function submitMatchResult(matchId, result, submittedByPlayerId) {
   const autoConfirmAfter = new Date();
   autoConfirmAfter.setHours(autoConfirmAfter.getHours() + 48);
@@ -253,7 +302,6 @@ export async function submitMatchResult(matchId, result, submittedByPlayerId) {
   if (error) throw error;
 }
 
-// Confirm a score — sets status to 'confirmed'
 export async function confirmMatchResult(matchId, confirmedByPlayerId) {
   const { error } = await supabase
     .from('matches')
@@ -267,21 +315,18 @@ export async function confirmMatchResult(matchId, confirmedByPlayerId) {
   if (error) throw error;
 }
 
-// Open a dispute
 export async function openDispute(
   matchId,
   openedByPlayerId,
   reason,
   counterScore = null,
 ) {
-  // 1. Set match status to disputed
   const { error: matchErr } = await supabase
     .from('matches')
     .update({ status: 'disputed' })
     .eq('id', matchId);
   if (matchErr) throw matchErr;
 
-  // 2. Create dispute record — auto-escalate to admin after 24h
   const autoEscalate = new Date();
   autoEscalate.setHours(autoEscalate.getHours() + 24);
 
@@ -303,7 +348,7 @@ export async function fetchDispute(matchId) {
     .eq('match_id', matchId)
     .order('opened_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) return null;
   return data;
@@ -392,7 +437,6 @@ export async function saveInitialRankings(
   const { error } = await supabase.from('rankings').insert(rows);
   if (error) throw error;
 
-  // Also write to rank_history as the initial seeding record
   const historyRows = seededParticipants.map((p, i) => ({
     league_id: leagueId,
     player_id: isDoubles ? null : p.id,

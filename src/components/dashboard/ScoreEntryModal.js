@@ -3,49 +3,85 @@ import React, { useState, useMemo } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 
-// ─── Valid score ranges ───────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Score options
+// gamesPerSet: 4 | 6 | 8
+//   Regular win:      g vs ≤ g-2        (e.g. 6-4, 6-3, 6-0)
+//   Close win:        g vs g-1          (only when no tiebreak format)
+//   Tiebreak win:     g+1 vs g          (e.g. 7-6, 5-4, 9-8)
+// Super tiebreak:     first to 10, win by 2  → options 0–20
+// ─────────────────────────────────────────────────────────────
 
-function getTennisOptions(isSuperTb) {
-  return isSuperTb
-    ? Array.from({ length: 21 }, (_, i) => i) // 0-20 super tiebreak
-    : [0, 1, 2, 3, 4, 5, 6, 7];
-}
-function getPickleballOptions() {
-  return Array.from({ length: 30 }, (_, i) => i);
+function getTennisOptions(isSuperTb, gamesPerSet) {
+  if (isSuperTb) return Array.from({ length: 21 }, (_, i) => i); // 0–20
+  const g = gamesPerSet || 6;
+  // Need 0 … g+1  (g+1 is the tiebreak-winner score, e.g. 7 in 6-game sets)
+  return Array.from({ length: g + 2 }, (_, i) => i);
 }
 
-function isValidTennisSet(p1, p2, isSuperTb) {
+function getPickleballOptions(pickleballPoints) {
+  const pts = pickleballPoints || 11;
+  // Allow well past the base target to cover extended win-by-2 rallies
+  return Array.from({ length: pts + 12 }, (_, i) => i);
+}
+
+// ─── Tennis set validation ────────────────────────────────────
+// All four format-related params must be passed every time.
+function isValidTennisSet(p1, p2, isSuperTb, gamesPerSet, tiebreakFormat) {
   if (p1 === '' || p2 === '') return false;
   const a = parseInt(p1, 10),
     b = parseInt(p2, 10);
   if (isNaN(a) || isNaN(b)) return false;
+
+  // Super tiebreak (deciding set only): first to 10, win by 2
   if (isSuperTb) {
     const hi = Math.max(a, b),
       lo = Math.min(a, b);
     return hi >= 10 && hi - lo >= 2;
   }
-  if (a === 7 && (b === 6 || b === 5)) return true;
-  if (b === 7 && (a === 6 || a === 5)) return true;
-  if (a === 6 && b <= 4) return true;
-  if (b === 6 && a <= 4) return true;
+
+  const g = gamesPerSet || 6;
+  const fmt = tiebreakFormat || 'standard';
+
+  // Clean win: reach g with opponent ≤ g-2  (e.g. 6-4, 6-3, 8-5, 4-2)
+  if (a === g && b <= g - 2) return true;
+  if (b === g && a <= g - 2) return true;
+
+  // Close win (g vs g-1) — only valid when no tiebreak is used
+  if (fmt === 'no_tiebreak') {
+    if (a === g && b === g - 1) return true;
+    if (b === g && a === g - 1) return true;
+  }
+
+  // Tiebreak win (g+1 vs g) — valid for standard and match_tiebreak formats
+  if (fmt === 'standard' || fmt === 'match_tiebreak') {
+    if (a === g + 1 && b === g) return true;
+    if (b === g + 1 && a === g) return true;
+  }
+
   return false;
 }
 
-function isValidPickleballGame(p1, p2) {
+// ─── Pickleball game validation ───────────────────────────────
+function isValidPickleballGame(p1, p2, pickleballPoints) {
   if (p1 === '' || p2 === '') return false;
   const a = parseInt(p1, 10),
     b = parseInt(p2, 10);
   if (isNaN(a) || isNaN(b)) return false;
+  const pts = pickleballPoints || 11;
   const hi = Math.max(a, b),
     lo = Math.min(a, b);
-  return hi >= 11 && hi - lo >= 2;
+  // Must reach pts AND win by 2
+  return hi >= pts && hi - lo >= 2;
 }
 
-function isTennisSetTiebreak(p1, p2) {
-  return (
-    (parseInt(p1, 10) === 7 && parseInt(p2, 10) === 6) ||
-    (parseInt(p1, 10) === 6 && parseInt(p2, 10) === 7)
-  );
+// Returns true when this set ended in a tiebreak (g+1 vs g)
+function isTennisSetTiebreak(p1, p2, gamesPerSet, tiebreakFormat) {
+  if ((tiebreakFormat || 'standard') === 'no_tiebreak') return false;
+  const g = gamesPerSet || 6;
+  const a = parseInt(p1, 10),
+    b = parseInt(p2, 10);
+  return (a === g + 1 && b === g) || (b === g + 1 && a === g);
 }
 
 function getSetCount(format) {
@@ -63,12 +99,15 @@ function getParticipantName(p, isDoubles) {
   return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
 }
 
-// ─── Single set row ───────────────────────────────────────
+// ─── Single set row ───────────────────────────────────────────
 
 function SetScoreRow({
   index,
   sport,
   thirdSetFormat,
+  tiebreakFormat,
+  gamesPerSet,
+  pickleballPoints,
   isDeciding,
   isTied,
   setScore,
@@ -77,16 +116,18 @@ function SetScoreRow({
   p2Name,
 }) {
   const isTennis = sport === 'tennis';
-  // Super tiebreak / deciding set only shown when tied
   const isSuperTb = isDeciding && isTied && thirdSetFormat === 'super_tiebreak';
   const { p1, p2, tbP1, tbP2 } = setScore;
 
   const isValid = isTennis
-    ? isValidTennisSet(p1, p2, isSuperTb)
-    : isValidPickleballGame(p1, p2);
+    ? isValidTennisSet(p1, p2, isSuperTb, gamesPerSet, tiebreakFormat)
+    : isValidPickleballGame(p1, p2, pickleballPoints);
 
   const showTb =
-    isTennis && !isSuperTb && isValid && isTennisSetTiebreak(p1, p2);
+    isTennis &&
+    !isSuperTb &&
+    isValid &&
+    isTennisSetTiebreak(p1, p2, gamesPerSet, tiebreakFormat);
 
   const label = isSuperTb
     ? 'Super TB'
@@ -94,8 +135,13 @@ function SetScoreRow({
       ? `Set ${index + 1}`
       : `Game ${index + 1}`;
 
-  const opts = isTennis ? getTennisOptions(isSuperTb) : getPickleballOptions();
+  const opts = isTennis
+    ? getTennisOptions(isSuperTb, gamesPerSet)
+    : getPickleballOptions(pickleballPoints);
+
+  // Tiebreak point options: first to 7, win by 2 → realistically 0–14 covers it
   const tbOpts = Array.from({ length: 15 }, (_, i) => i);
+
   const hasScore = p1 !== '' && p2 !== '';
   const p1Short = p1Name.split(' ')[0];
   const p2Short = p2Name.split(' ')[0];
@@ -169,6 +215,7 @@ function SetScoreRow({
           )}
         </div>
 
+        {/* Tiebreak score row — shown when set ends at g+1 vs g */}
         {showTb && (
           <div
             className="tb-score-row"
@@ -227,14 +274,18 @@ function SetScoreRow({
   );
 }
 
-// ─── Main Modal ───────────────────────────────────────────
+// ─── Main Modal ───────────────────────────────────────────────
 
 function ScoreEntryModal({ match, onClose }) {
   const { settings, isDoubles, submitResult } = useLeague();
   const { currentPlayer } = usePlayerIdentity();
+
   const sport = settings.sport;
   const format = settings.format;
   const thirdSetFormat = settings.thirdSetFormat || 'full_set';
+  const tiebreakFormat = settings.tiebreakFormat || 'standard';
+  const gamesPerSet = settings.gamesPerSet || 6;
+  const pickleballPoints = settings.pickleballPoints || 11;
   const isTennis = sport === 'tennis';
   const maxSets = getSetCount(format);
   const setsNeeded = getSetsNeeded(maxSets);
@@ -265,18 +316,21 @@ function ScoreEntryModal({ match, onClose }) {
     setError('');
   };
 
-  // ── Compute running set wins after each set index ─────────
-  // Returns [p1wins, p2wins] considering only sets 0..i-1
+  // Count validated set wins before a given index
   function winsAfter(beforeIdx) {
     let p1 = 0,
       p2 = 0;
     for (let j = 0; j < beforeIdx; j++) {
       const s = sets[j];
-      const isSuperTb =
-        maxSets > 1 && j === maxSets - 1 && thirdSetFormat === 'super_tiebreak';
+      const tied = p1 === p2 && p1 === setsNeeded - 1;
+      const superTb =
+        maxSets > 1 &&
+        j === maxSets - 1 &&
+        tied &&
+        thirdSetFormat === 'super_tiebreak';
       const valid = isTennis
-        ? isValidTennisSet(s.p1, s.p2, isSuperTb)
-        : isValidPickleballGame(s.p1, s.p2);
+        ? isValidTennisSet(s.p1, s.p2, superTb, gamesPerSet, tiebreakFormat)
+        : isValidPickleballGame(s.p1, s.p2, pickleballPoints);
       if (valid) {
         const a = parseInt(s.p1, 10),
           b = parseInt(s.p2, 10);
@@ -287,7 +341,7 @@ function ScoreEntryModal({ match, onClose }) {
     return [p1, p2];
   }
 
-  // ── Compute final result ─────────────────────────────────
+  // ── Compute final result ──────────────────────────────────
   const result = useMemo(() => {
     if (!match.p1 || !match.p2) return null;
     let p1SetsWon = 0,
@@ -298,16 +352,15 @@ function ScoreEntryModal({ match, onClose }) {
 
     for (let i = 0; i < maxSets; i++) {
       const s = sets[i];
-      // Deciding set is super tiebreak only when tied
       const isTied = p1SetsWon === p2SetsWon && p1SetsWon === setsNeeded - 1;
-      const isSuperTb =
+      const superTb =
         maxSets > 1 &&
         i === maxSets - 1 &&
         isTied &&
         thirdSetFormat === 'super_tiebreak';
       const valid = isTennis
-        ? isValidTennisSet(s.p1, s.p2, isSuperTb)
-        : isValidPickleballGame(s.p1, s.p2);
+        ? isValidTennisSet(s.p1, s.p2, superTb, gamesPerSet, tiebreakFormat)
+        : isValidPickleballGame(s.p1, s.p2, pickleballPoints);
 
       if (!valid) {
         if (p1SetsWon >= setsNeeded || p2SetsWon >= setsNeeded) break;
@@ -392,7 +445,7 @@ function ScoreEntryModal({ match, onClose }) {
           <div className="modal-body">
             <div
               className="modal-matchup"
-              aria-label={`Match: ${p1Name} vs ${p2Name}`}
+              aria-label={`${p1Name} vs ${p2Name}`}
             >
               <span className="modal-player">{p1Name}</span>
               <span className="modal-vs" aria-hidden="true">
@@ -404,14 +457,12 @@ function ScoreEntryModal({ match, onClose }) {
             <div className="set-rows">
               {sets.map((s, i) => {
                 const [p1w, p2w] = winsAfter(i);
-                // Hide once match is decided
                 if (p1w >= setsNeeded || p2w >= setsNeeded) return null;
 
                 const isDeciding = maxSets > 1 && i === maxSets - 1;
-                // Deciding set only shown if we actually reach a tie
                 const isTied = p1w === p2w && p1w === setsNeeded - 1;
 
-                // Only render the deciding set row if we're tied (or it's not the deciding set)
+                // Only show deciding set row when scores are actually tied
                 if (isDeciding && !isTied) return null;
 
                 return (
@@ -420,6 +471,9 @@ function ScoreEntryModal({ match, onClose }) {
                     index={i}
                     sport={sport}
                     thirdSetFormat={thirdSetFormat}
+                    tiebreakFormat={tiebreakFormat}
+                    gamesPerSet={gamesPerSet}
+                    pickleballPoints={pickleballPoints}
                     isDeciding={isDeciding}
                     isTied={isTied}
                     setScore={s}

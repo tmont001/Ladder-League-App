@@ -1,10 +1,12 @@
 // src/components/dashboard/PlayersPanel.js
-// Admin-only panel showing every player's session code so the
-// admin can copy and share them via text or email.
+// Admin-only panel showing every player's session code.
+// Loads codes via the get_player_codes RPC so that session_token
+// is never present in the shared LeagueContext participants array.
 
+import React, { useState, useEffect } from 'react';
 import Portal from '../shared/Portal';
-import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
+import { fetchPlayerCodes } from '../../lib/db';
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
@@ -24,7 +26,8 @@ function CopyButton({ text }) {
 }
 
 function PlayerCodeRow({ player, leagueUrl }) {
-  const shareText = `Hi ${player.name}! Join ${leagueUrl} and enter your code: ${player.sessionToken}`;
+  const token = player.session_token || '—';
+  const shareText = `Hi ${player.name}! Join ${leagueUrl} and enter your code: ${token}`;
 
   return (
     <div className="player-code-row">
@@ -35,16 +38,11 @@ function PlayerCodeRow({ player, leagueUrl }) {
             <span className="player-code-admin-badge">Admin</span>
           )}
         </div>
-        {player.rating && (
-          <div className="player-code-rating">
-            {player.ratingType || 'Rating'} {player.rating}
-          </div>
-        )}
       </div>
 
       <div className="player-code-token-wrap">
-        <code className="player-code-token">{player.sessionToken}</code>
-        <CopyButton text={player.sessionToken} />
+        <code className="player-code-token">{token}</code>
+        <CopyButton text={token} />
       </div>
 
       <div className="player-code-share-wrap">
@@ -56,13 +54,26 @@ function PlayerCodeRow({ player, leagueUrl }) {
 }
 
 function PlayersPanel({ onClose }) {
-  const { participants, isDoubles } = useLeague();
+  const { settings } = useLeague();
   const leagueUrl = window.location.href;
 
-  // In doubles mode participants are teams — get the individual players
-  const players = isDoubles
-    ? participants.flatMap((t) => t.players)
-    : participants;
+  const leagueId = settings?.id;
+  const isOffline = !leagueId || String(leagueId).startsWith('local-');
+
+  const [playerCodes, setPlayerCodes] = useState([]);
+  const [loadingCodes, setLoadingCodes] = useState(!isOffline);
+  const [codesError, setCodesError] = useState(null);
+
+  useEffect(() => {
+    if (isOffline) return;
+    fetchPlayerCodes(leagueId)
+      .then(setPlayerCodes)
+      .catch((err) => {
+        console.warn('[PlayersPanel] failed to load codes:', err.message);
+        setCodesError('Could not load player codes. Check your connection and try again.');
+      })
+      .finally(() => setLoadingCodes(false));
+  }, [leagueId, isOffline]);
 
   return (
     <Portal>
@@ -82,15 +93,34 @@ function PlayersPanel({ onClose }) {
               their league account.
             </div>
 
-            <div className="player-codes-list">
-              {players.map((player) => (
-                <PlayerCodeRow
-                  key={player.id}
-                  player={player}
-                  leagueUrl={leagueUrl}
-                />
-              ))}
-            </div>
+            {isOffline ? (
+              <div className="info-box" style={{ marginTop: 16 }}>
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 3 }}>
+                    Offline mode — codes unavailable
+                  </div>
+                  Player codes are only retrievable when connected to Supabase.
+                </div>
+              </div>
+            ) : loadingCodes ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--color-muted)' }}>
+                Loading codes…
+              </div>
+            ) : codesError ? (
+              <div className="picker-error" role="alert">
+                ⚠ {codesError}
+              </div>
+            ) : (
+              <div className="player-codes-list">
+                {playerCodes.map((player) => (
+                  <PlayerCodeRow
+                    key={player.id}
+                    player={player}
+                    leagueUrl={leagueUrl}
+                  />
+                ))}
+              </div>
+            )}
 
             <div className="player-codes-tip">
               💡 Tip: Use "Copy invite message" to send a ready-to-send text or

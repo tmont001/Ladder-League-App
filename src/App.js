@@ -153,8 +153,8 @@ function AppContent() {
 
           {screen === 'codes' && leagueData && (
             <LaunchCodesScreen
+              leagueId={effectiveSettings?.id}
               leagueName={activeSettings?.leagueName}
-              participants={leagueData.seededParticipants}
               isDoubles={activeSettings?.singlesOrDoubles === 'doubles'}
               onEnterDashboard={() => setScreen('dashboard')}
             />

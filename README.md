@@ -1,73 +1,41 @@
-Ladder League — Local Setup
+# Tennis Ladder League App
 
-Minimal instructions to run the API and frontend locally.
+A web app for running a tennis club's ladder league — players join a league, get ranked, and challenge each other to matches to move up the ladder.
 
-Prerequisites
+## Features
 
-- Node.js (16+)
-- npm
-- PostgreSQL / Supabase (optional; needed to run migrations)
+- League setup flow for organizers (multi-step configuration)
+- Launch codes for players to join a league
+- Player picker and ranked ladder view
+- Supabase-backed authentication and data storage
 
-Quick start
+## Tech Stack
 
-1. Install dependencies
+- **Frontend:** React
+- **Backend:** Node.js/Express, PostgreSQL
+- **Auth & Data:** Supabase
+- **API docs:** Swagger/OpenAPI (via `swagger-ui-express`)
+
+## Getting Started
 
 ```bash
 npm install
-```
-
-2. Create a `.env` with your Postgres connection string
-
-```
-DATABASE_URL=postgres://user:pass@host:5432/dbname
-```
-
-3. Run the DB migration (choose one):
-
-- Using psql (quick):
-
-```bash
-psql "$DATABASE_URL" -f supabase/migrations/001_create_ladder_schema.sql
-```
-
-- Using Supabase CLI: import the SQL file as a migration into your Supabase project (see Supabase docs).
-
-4. Start the API server
-
-```bash
-npm run start:api
-```
-
-- API server defaults to port `4000` (set `PORT` env to override).
-- Open API docs at: http://localhost:4000/docs
-
-5. Start the frontend (React app)
-
-```bash
+cp .env.example .env   # add your Supabase URL and anon key
 npm start
 ```
 
-Background jobs
+## Project Structure
 
-- Expire challenges (run periodically):
-
-```bash
-node backend/jobs/expireChallengesJob.js
+```
+src/
+  components/   # LeagueSetup, LaunchCodesScreen, HomeScreen, PlayerPicker, PlayerJoinScreen
+  context/       # app-level React context
+  lib/           # Supabase client and API helpers
+  utils/
+supabase/
+  schema.sql     # database schema
 ```
 
-- Auto-approve matches job (run periodically):
+## Status
 
-```bash
-node backend/jobs/autoApproveMatchesJob.js
-```
-
-Notes
-
-- The API expects a `DATABASE_URL` env var.
-- Email delivery is stubbed to `outbox_emails`; integrate SendGrid/Mailgun later.
-- Movement rules, settings, and seeds live in `league_settings` (JSONB). Default settings are provided in the migration comments.
-
-Next steps (suggested)
-
-- Wire frontend flows to the API endpoints in `/api/*`.
-- Implement notifications and background worker scheduling (cron or serverless scheduled functions).
+Actively developed — local/dev setup, not yet deployed to production.

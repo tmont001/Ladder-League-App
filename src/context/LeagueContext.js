@@ -125,7 +125,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'ladder',
           table: 'matches',
           filter: `league_id=eq.${leagueId}`,
         },
@@ -153,7 +153,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'ladder',
           table: 'challenges',
           filter: `league_id=eq.${leagueId}`,
         },

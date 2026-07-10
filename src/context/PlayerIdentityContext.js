@@ -1,4 +1,3 @@
-// src/context/PlayerIdentityContext.js
 import React, {
   createContext,
   useContext,
@@ -16,7 +15,6 @@ import {
 
 const PlayerIdentityContext = createContext();
 
-// A synthetic "organizer" identity used when the admin is not a player
 const ORGANIZER_IDENTITY = {
   id: '__organizer__',
   name: 'Organizer',
@@ -30,7 +28,6 @@ export function PlayerIdentityProvider({
   initialPlayer,
   children,
 }) {
-  // If isOrganizer prop is true (just launched), skip token lookup entirely
   const orgFromStorage = leagueId ? isOrganizer(leagueId) : false;
   const startAsOrg = isOrgProp || orgFromStorage;
 
@@ -42,15 +39,24 @@ export function PlayerIdentityProvider({
     !startAsOrg && !initialPlayer && !!leagueId,
   );
 
-  // Check localStorage for a stored player token (returning player, not organizer)
   useEffect(() => {
     if (startAsOrg || !leagueId) {
       setLoading(false);
       return;
     }
 
+    // If we already have a player from the join flow, no lookup needed
+    if (initialPlayer) {
+      setLoading(false);
+      return;
+    }
+
     const stored = getStoredToken(leagueId);
-    if (!stored) {
+
+    // Purge any stale local-mode tokens — they only exist in memory and
+    // will never be found in Supabase, causing a 406 error
+    if (!stored || stored.startsWith('local-')) {
+      if (stored) clearToken(leagueId);
       setLoading(false);
       return;
     }
@@ -60,22 +66,36 @@ export function PlayerIdentityProvider({
         if (player && player.leagueId === leagueId) {
           setCurrentPlayer(player);
         } else {
+          // Token exists in storage but doesn't match — clear it
           clearToken(leagueId);
         }
       })
       .catch(() => clearToken(leagueId))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId, startAsOrg]);
 
   const loginWithToken = useCallback(
     async (token) => {
       if (!leagueId) throw new Error('No active league.');
 
-      const player = await fetchPlayerByToken(token.trim());
-      if (!player || player.leagueId !== leagueId) {
-        throw new Error('Code not found. Check the code and try again.');
+      const trimmed = token.trim();
+
+      // Guard: reject local tokens immediately without hitting the DB
+      if (trimmed.startsWith('local-')) {
+        throw new Error(
+          'That code is from an offline session and cannot be used to log in. Ask your admin to share a real league code.',
+        );
       }
-      storeToken(leagueId, token.trim());
+
+      const player = await fetchPlayerByToken(trimmed);
+      if (!player) {
+        throw new Error('Code not found. Double-check the code and try again.');
+      }
+      if (player.leagueId !== leagueId) {
+        throw new Error('This code belongs to a different league.');
+      }
+      storeToken(leagueId, trimmed);
       setCurrentPlayer(player);
       return player;
     },
