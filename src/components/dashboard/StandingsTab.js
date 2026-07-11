@@ -53,7 +53,6 @@ function StandingsTab() {
         {standings.map((entry, i) => {
           const rank = i + 1;
           const p = entry.participant;
-          const hasPlayed = entry.matchesPlayed > 0;
 
           return (
             <div

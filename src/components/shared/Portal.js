@@ -13,9 +13,10 @@ function Portal({ children }) {
   const el = useRef(document.createElement('div'));
 
   useEffect(() => {
-    document.body.appendChild(el.current);
+    const node = el.current;
+    document.body.appendChild(node);
     return () => {
-      document.body.removeChild(el.current);
+      document.body.removeChild(node);
     };
   }, []);
 

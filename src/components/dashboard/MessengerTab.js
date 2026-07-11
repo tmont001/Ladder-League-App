@@ -127,10 +127,6 @@ function MessengerTab() {
     const otherParticipantId = active.isLeague
       ? null
       : active.participantIds?.find((id) => id !== currentPlayer.id);
-    const otherParticipant = otherParticipantId
-      ? participants.find((p) => p.id === otherParticipantId)
-      : null;
-    const selfParticipant = participants.find((p) => p.id === currentPlayer.id);
 
     const msg = {
       id: genId(),

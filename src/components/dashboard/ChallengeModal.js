@@ -12,7 +12,6 @@ function ChallengeModal({ onClose }) {
     isDoubles,
     participants,
     standings,
-    currentRoundNumber,
     addChallenge,
   } = useLeague();
   const challengeSpots = settings.challengeSpots || 2;
