@@ -103,29 +103,41 @@ function dbLeagueToSettings(row) {
 // PLAYERS
 // ══════════════════════════════════════════════════════════════
 
-// Creates players and returns safe public fields (no session_token).
+// Creates players serially and returns { dbPlayers, idMap }.
+//
+// Serial (not batch) because the ladder.players INSERT column grant
+// excludes `id` — the DB assigns each UUID via gen_random_uuid().
+// Inserting one row at a time with .single() gives us the DB-assigned
+// UUID for each player without relying on returned-row ordering.
+//
+// idMap: { localPlayerId → dbPlayerId }
 // Callers that need session_token (LaunchCodesScreen, PlayersPanel)
 // must call fetchPlayerCodes() separately after creation.
 export async function createPlayers(leagueId, players) {
-  const rows = players.map((p) => ({
-    league_id: leagueId,
-    name: p.name,
-    rating: p.rating || null,
-    rating_type: p.ratingType || null,
-    utr_url: p.utrUrl || null,
-    role: p.isAdmin ? 'admin' : 'player',
-    // session_token intentionally omitted — DB DEFAULT fires automatically
-  }));
+  const dbPlayers = [];
+  const idMap = {};
 
-  // Explicit safe column list matches the column-level SELECT grant.
-  // session_token is never requested here; it stays server-side.
-  const { data, error } = await supabase
-    .from('players')
-    .insert(rows)
-    .select('id, league_id, name, rating, rating_type, utr_url, role, status, last_active_at, joined_at');
+  for (const p of players) {
+    const { data, error } = await supabase
+      .from('players')
+      .insert({
+        league_id: leagueId,
+        name: p.name,
+        rating: p.rating || null,
+        rating_type: p.ratingType || null,
+        utr_url: p.utrUrl || null,
+        role: p.isAdmin ? 'admin' : 'player',
+        // session_token intentionally omitted — DB DEFAULT fires automatically
+      })
+      .select('id, league_id, name, rating, rating_type, utr_url, role, status, last_active_at, joined_at')
+      .single();
 
-  if (error) throw error;
-  return data.map(dbPlayerToPlayer);
+    if (error) throw error;
+    idMap[p.id] = data.id;
+    dbPlayers.push(dbPlayerToPlayer(data));
+  }
+
+  return { dbPlayers, idMap };
 }
 
 // Normal player listing — queries players_public (no session_token).
@@ -212,28 +224,26 @@ function dbPlayerToPlayer(row) {
 // TEAMS (DOUBLES)
 // ══════════════════════════════════════════════════════════════
 
+// Callers must supply team.id as a pre-generated crypto.randomUUID().
+// The ladder.teams grant is table-level, so explicit id insertion is
+// permitted (unlike ladder.players, which blocks client-supplied id).
+// No return value — callers build their teamIdMap before this call.
 export async function createTeams(leagueId, teams) {
-  const results = [];
   for (const team of teams) {
-    const { data: teamRow, error: teamErr } = await supabase
+    const { error: teamErr } = await supabase
       .from('teams')
-      .insert({ league_id: leagueId })
-      .select()
-      .single();
+      .insert({ id: team.id, league_id: leagueId });
     if (teamErr) throw teamErr;
 
     const members = team.players.map((p) => ({
-      team_id: teamRow.id,
+      team_id: team.id,
       player_id: p.id,
     }));
     const { error: membErr } = await supabase
       .from('team_members')
       .insert(members);
     if (membErr) throw membErr;
-
-    results.push({ id: teamRow.id, players: team.players });
   }
-  return results;
 }
 
 // Fetches teams with embedded player data via FK join.
@@ -256,17 +266,38 @@ export async function fetchTeams(leagueId) {
 // MATCHES
 // ══════════════════════════════════════════════════════════════
 
-export async function createMatches(leagueId, matches) {
-  const rows = matches.map((m) => ({
-    league_id: leagueId,
-    round_number: m.round,
-    type: m.type || 'scheduled',
-    is_bye: m.isBye || false,
-    p1_player_id: m.p1?.id || null,
-    p2_player_id: m.p2?.id || null,
-    status: 'pending',
-    result: null,
-  }));
+// Resolves a match participant's local ID to a DB UUID via idMap.
+// Returns null if participant is absent (valid for bye p2).
+// Throws a clear error if participant is present but has no mapping —
+// a missing mapping indicates a bug in the caller, not a DB error.
+function getMappedParticipantId(participant, idMap, label) {
+  if (!participant) return null;
+  const mappedId = idMap[participant.id];
+  if (!mappedId) {
+    throw new Error(
+      `Missing database ID mapping for ${label}: ${participant.id}`,
+    );
+  }
+  return mappedId;
+}
+
+export async function createMatches(leagueId, matches, isDoubles = false, idMap = {}) {
+  const rows = matches.map((m) => {
+    const p1Id = getMappedParticipantId(m.p1, idMap, 'p1');
+    const p2Id = getMappedParticipantId(m.p2, idMap, 'p2');
+    return {
+      league_id: leagueId,
+      round_number: m.round,
+      type: m.type || 'scheduled',
+      is_bye: m.isBye || false,
+      p1_player_id: isDoubles ? null : p1Id,
+      p2_player_id: isDoubles ? null : p2Id,
+      p1_team_id:   isDoubles ? p1Id : null,
+      p2_team_id:   isDoubles ? p2Id : null,
+      status: 'pending',
+      result: null,
+    };
+  });
 
   const { data, error } = await supabase.from('matches').insert(rows).select();
   if (error) throw error;

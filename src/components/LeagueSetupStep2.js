@@ -1,5 +1,5 @@
 import Portal from './shared/Portal';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import ThemeToggle from './shared/ThemeToggle';
 import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
 import { generateLeague } from '../utils/matchGenerator';
@@ -371,7 +371,7 @@ function Round1Preview({ rounds, isDoubles }) {
 
 // ─── Main combined step ───────────────────────────────────
 
-function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
+function LeagueSetupStep2({ settings, onLaunch, onBack, initialData, launchError }) {
   const isDoubles = settings?.singlesOrDoubles === 'doubles';
 
   // ── Player state ─────────────────────────────────────────
@@ -403,6 +403,11 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
   // Confirmation modal
   const [showConfirm, setShowConfirm] = useState(false);
   const [launching, setLaunching] = useState(false);
+
+  // When the parent reports a launch error, re-enable the button.
+  useEffect(() => {
+    if (launchError) setLaunching(false);
+  }, [launchError]);
 
   // ── Computed ─────────────────────────────────────────────
   const effectiveSettings = useMemo(
@@ -872,6 +877,13 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData }) {
           </div>
         </div>
       </div>
+
+      {/* ── Launch error ── */}
+      {launchError && (
+        <div className="picker-error" role="alert" style={{ margin: '0 16px 12px' }}>
+          {launchError}
+        </div>
+      )}
 
       {/* ── Footer ── */}
       <div className="card-footer card-footer-two">

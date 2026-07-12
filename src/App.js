@@ -31,6 +31,7 @@ function AppContent() {
   const [leagueData, setLeagueData] = useState(null);
   const [effectiveSettings, setEffectiveSettings] = useState(null);
   const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState(null);
   // Player who joined via code (not the organizer)
   const [joinedPlayer, setJoinedPlayer] = useState(null);
   const [selectedSport, setSelectedSport] = useState('tennis');
@@ -43,63 +44,87 @@ function AppContent() {
 
   const handleLaunch = async (generatedLeague, finalSettings) => {
     setLaunching(true);
+    setLaunchError(null);
+
     try {
       const dbLeague = await createLeague(finalSettings);
       const leagueId = dbLeague.id;
+      const isDoubles = finalSettings.singlesOrDoubles === 'doubles';
 
-      const dbPlayers = await createPlayers(
-        leagueId,
-        generatedLeague.seededParticipants.map((p) => ({
-          ...p,
-          isAdmin: false,
-        })),
-      );
+      let dbParticipants;
 
-      if (
-        finalSettings.singlesOrDoubles === 'doubles' &&
-        generatedLeague.seededParticipants[0]?.players
-      ) {
-        await createTeams(leagueId, generatedLeague.seededParticipants);
+      if (isDoubles) {
+        const localTeams = generatedLeague.seededParticipants;
+
+        // De-duplicate players across teams before inserting.
+        // Each player has one local ID; the Map collapses any duplicates.
+        const allLocalPlayers = Array.from(
+          new Map(
+            localTeams
+              .flatMap((team) => team.players)
+              .map((player) => [player.id, player]),
+          ).values(),
+        );
+
+        const { idMap: playerIdMap } = await createPlayers(
+          leagueId,
+          allLocalPlayers.map((p) => ({ ...p, isAdmin: false })),
+        );
+
+        // Pre-generate team UUIDs client-side.
+        // ladder.teams has a table-level grant, so explicit id is allowed.
+        const teamIdMap = {};
+        localTeams.forEach((t) => {
+          teamIdMap[t.id] = crypto.randomUUID();
+        });
+
+        // Remap team objects: pre-generated UUIDs + DB player IDs.
+        const remappedTeams = localTeams.map((team) => ({
+          id: teamIdMap[team.id],
+          players: team.players.map((p) => ({ ...p, id: playerIdMap[p.id] })),
+        }));
+
+        await createTeams(leagueId, remappedTeams);
+
+        await createMatches(leagueId, generatedLeague.matches, true, teamIdMap);
+
+        // Build dbTeams for rankings — all IDs already known, no DB call needed.
+        const dbTeams = localTeams.map((team) => ({
+          id: teamIdMap[team.id],
+          players: team.players.map((p) => ({ ...p, id: playerIdMap[p.id] })),
+        }));
+
+        await saveInitialRankings(leagueId, dbTeams, true);
+        dbParticipants = dbTeams;
+
+      } else {
+        const localPlayers = generatedLeague.seededParticipants;
+
+        const { dbPlayers, idMap: playerIdMap } = await createPlayers(
+          leagueId,
+          localPlayers.map((p) => ({ ...p, isAdmin: false })),
+        );
+
+        await createMatches(leagueId, generatedLeague.matches, false, playerIdMap);
+
+        await saveInitialRankings(leagueId, dbPlayers, false);
+        dbParticipants = dbPlayers;
       }
-
-      await createMatches(
-        leagueId,
-        generatedLeague.matches.map((m) => ({
-          ...m,
-          p1_player_id: m.p1?.id || null,
-          p2_player_id: m.p2?.id || null,
-        })),
-      );
-
-      await saveInitialRankings(
-        leagueId,
-        dbPlayers,
-        finalSettings.singlesOrDoubles === 'doubles',
-      );
 
       setActiveLeagueId(leagueId);
       setOrganizer(leagueId);
-
       setEffectiveSettings({ ...finalSettings, id: leagueId });
-      setLeagueData({ ...generatedLeague, seededParticipants: dbPlayers });
+      setLeagueData({ ...generatedLeague, seededParticipants: dbParticipants });
+      setScreen('codes');
+
     } catch (err) {
-      console.warn(
-        '[App] Supabase unavailable, running in-memory:',
-        err.message,
+      console.error('[App] League launch failed:', err);
+      setLaunchError(
+        'We couldn’t create the league. Nothing was launched. Please try again.',
       );
-
-      const participants = generatedLeague.seededParticipants.map((p) => ({
-        ...p,
-        sessionToken: p.sessionToken || `local-${p.id}`,
-        role: 'player',
-      }));
-
-      setEffectiveSettings({ ...finalSettings, id: `local-${Date.now()}` });
-      setLeagueData({ ...generatedLeague, seededParticipants: participants });
+    } finally {
+      setLaunching(false);
     }
-
-    setLaunching(false);
-    setScreen('codes');
   };
 
   // ── Join flow ────────────────────────────────────────────
@@ -146,8 +171,9 @@ function AppContent() {
             <LeagueSetupStep2
               settings={leagueSettings}
               onLaunch={handleLaunch}
-              onBack={() => setScreen('setup1')}
+              onBack={() => { setScreen('setup1'); setLaunchError(null); }}
               externalLaunching={launching}
+              launchError={launchError}
             />
           )}
 
