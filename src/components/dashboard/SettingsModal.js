@@ -77,7 +77,7 @@ function SelectRow({ label, sub, value, onChange, options }) {
   );
 }
 
-function SettingsModal({ settings, onSave, onClose }) {
+function SettingsModal({ settings, onSave, onClose, saving = false, saveError = null }) {
   const [s, setS] = useState({ ...settings });
   const set = (key, val) => setS((p) => ({ ...p, [key]: val }));
   const isTennis = s.sport === 'tennis';
@@ -204,17 +204,24 @@ function SettingsModal({ settings, onSave, onClose }) {
           </div>
 
           <div className="modal-footer">
-            <button className="btn-back" onClick={onClose}>
+            {saveError && (
+              <div
+                className="picker-error"
+                role="alert"
+                style={{ marginRight: 'auto', maxWidth: '60%' }}
+              >
+                {saveError}
+              </div>
+            )}
+            <button className="btn-back" onClick={onClose} disabled={saving}>
               Cancel
             </button>
             <button
               className="btn-next"
-              onClick={() => {
-                onSave(s);
-                onClose();
-              }}
+              onClick={() => onSave(s)}
+              disabled={saving}
             >
-              Save Changes
+              {saving ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
         </div>

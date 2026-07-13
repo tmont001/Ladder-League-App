@@ -12,6 +12,7 @@ import {
   fetchMatches,
   fetchPlayers,
   fetchTeams,
+  fetchLeague,
   submitMatchResult,
   confirmMatchResult,
   openDispute,
@@ -22,6 +23,7 @@ import {
   fetchChallenges,
   fetchNotifications,
   markNotificationsRead,
+  updateLeagueSettings,
 } from '../lib/db';
 import { deriveStandings, isRoundComplete } from '../utils/matchGenerator';
 
@@ -78,7 +80,13 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   const leagueId = settings?.id;
   // Only hit Supabase for real UUIDs — local-* IDs mean we're running in-memory
   const isLive = leagueId && !String(leagueId).startsWith('local-');
-  const isDoubles = settings?.singlesOrDoubles === 'doubles';
+  const [liveSettings, setLiveSettings] = useState(settings);
+  const isDoubles = liveSettings?.singlesOrDoubles === 'doubles';
+
+  // Keep liveSettings in sync when App.js updates effectiveSettings (e.g. after a save)
+  useEffect(() => {
+    setLiveSettings((prev) => ({ ...prev, ...settings }));
+  }, [settings]);
 
   const [participants, setParticipants] = useState(
     initialLeagueData?.seededParticipants || [],
@@ -91,20 +99,24 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   const [loadingDb, setLoadingDb] = useState(false); // in-memory never needs loading
 
   // ── Load from DB ─────────────────────────────────────────
+  // isDoubles is intentionally excluded from the dependency array: we determine
+  // the doubles mode from fetchLeague inside load() to avoid a stale-closure issue
+  // when a player rejoins after a page refresh with minimal settings.
   useEffect(() => {
     if (!isLive) return;
     setLoadingDb(true);
     async function load() {
       try {
-        const [dbPlayers, dbTeams, dbMatches, dbChallenges] = await Promise.all(
-          [
-            fetchPlayers(leagueId),
-            isDoubles ? fetchTeams(leagueId) : Promise.resolve([]),
-            fetchMatches(leagueId),
-            fetchChallenges(leagueId),
-          ],
-        );
-        setParticipants(isDoubles ? dbTeams : dbPlayers);
+        const leagueFromDb = await fetchLeague(leagueId);
+        const isDbDoubles = leagueFromDb.singlesOrDoubles === 'doubles';
+        const [dbPlayers, dbTeams, dbMatches, dbChallenges] = await Promise.all([
+          fetchPlayers(leagueId),
+          isDbDoubles ? fetchTeams(leagueId) : Promise.resolve([]),
+          fetchMatches(leagueId),
+          fetchChallenges(leagueId),
+        ]);
+        setLiveSettings((prev) => ({ ...prev, ...leagueFromDb }));
+        setParticipants(isDbDoubles ? dbTeams : dbPlayers);
         setRawMatches(dbMatches);
         setChallenges(dbChallenges);
       } catch (err) {
@@ -114,7 +126,8 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
       }
     }
     load();
-  }, [leagueId, isLive, isDoubles]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leagueId, isLive]);
 
   // ── Real-time: matches ────────────────────────────────────
   useEffect(() => {
@@ -260,9 +273,24 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
     [isLive],
   );
 
+  const saveSettings = useCallback(
+    async (newSettings) => {
+      if (!isLive) return;
+      const patch = {
+        name: newSettings.leagueName,
+        format: newSettings.format,
+        third_set_format: newSettings.thirdSetFormat,
+        challenge_spots: Number(newSettings.challengeSpots),
+        auto_advance: newSettings.autoAdvance,
+      };
+      await updateLeagueSettings(leagueId, patch);
+    },
+    [isLive, leagueId],
+  );
+
   const addChallenge = useCallback(
     async (challengerParticipant, challengedParticipant) => {
-      const noResponseDays = settings?.challengeRules?.noResponseDays ?? 5;
+      const noResponseDays = liveSettings?.challengeRules?.noResponseDays ?? 5;
       if (isLive) {
         const challenge = await createChallenge(
           leagueId,
@@ -303,7 +331,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         setRawMatches((prev) => [...prev, m]);
       }
     },
-    [isLive, leagueId, currentRoundNumber, settings],
+    [isLive, leagueId, currentRoundNumber, liveSettings],
   );
 
   // Add a scheduled match from messenger event proposals
@@ -358,7 +386,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   return (
     <LeagueContext.Provider
       value={{
-        settings,
+        settings: liveSettings,
         isDoubles,
         participants,
         rounds,
@@ -373,6 +401,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         confirmResult,
         disputeResult,
         resolveMatch,
+        saveSettings,
         addChallenge,
         loadNotifications,
         readAllNotifications,

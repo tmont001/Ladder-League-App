@@ -7,9 +7,9 @@ import { TennisRacquetIcon, PickleballPaddleIcon } from '../SportIcons';
 import StandingsTab from './StandingsTab';
 import ScheduleTab from './ScheduleTab';
 import StatsTab from './StatsTab';
-import MessengerTab from './MessengerTab';
 import PlayersPanel from './PlayersPanel';
 import SettingsModal from './SettingsModal';
+import ErrorBoundary from '../shared/ErrorBoundary';
 
 const TABS = [
   {
@@ -73,23 +73,9 @@ const TABS = [
       </svg>
     ),
   },
-  {
-    id: 'messages',
-    label: 'Messages',
-    icon: (
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      >
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
-  },
+  // Messages tab omitted: MessengerTab is in-memory only and not delivered to
+  // other users. Messages are lost on page refresh and are invisible to anyone
+  // else in the league.
 ];
 
 function NotificationBell() {
@@ -189,12 +175,29 @@ function PlayerChip() {
 }
 
 function DashboardContent({ onSettingsSave }) {
-  const { settings, rounds, currentRoundNumber, loadNotifications } =
+  const { settings, rounds, currentRoundNumber, loadNotifications, saveSettings } =
     useLeague();
   const { currentPlayer, isAdmin } = usePlayerIdentity();
   const [activeTab, setActiveTab] = useState('standings');
   const [showPlayers, setShowPlayers] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [saveSettingsError, setSaveSettingsError] = useState(null);
+
+  const handleSettingsSave = async (s) => {
+    setSavingSettings(true);
+    setSaveSettingsError(null);
+    try {
+      await saveSettings(s);
+      onSettingsSave(s);
+      setShowSettings(false);
+    } catch (err) {
+      console.error('[Dashboard] settings save failed:', err);
+      setSaveSettingsError('Something went wrong. Please try again.');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   useEffect(() => {
     if (currentPlayer?.id) loadNotifications(currentPlayer.id);
@@ -273,8 +276,10 @@ function DashboardContent({ onSettingsSave }) {
       {showSettings && (
         <SettingsModal
           settings={settings}
-          onSave={onSettingsSave}
-          onClose={() => setShowSettings(false)}
+          onSave={handleSettingsSave}
+          onClose={() => { setShowSettings(false); setSaveSettingsError(null); }}
+          saving={savingSettings}
+          saveError={saveSettingsError}
         />
       )}
 
@@ -319,7 +324,6 @@ function DashboardContent({ onSettingsSave }) {
         {activeTab === 'standings' && <StandingsTab />}
         {activeTab === 'schedule' && <ScheduleTab />}
         {activeTab === 'stats' && <StatsTab />}
-        {activeTab === 'messages' && <MessengerTab />}
       </main>
     </div>
   );
@@ -345,7 +349,9 @@ function DashboardInner({ onSettingsSave }) {
 function Dashboard({ settings, leagueData, onSettingsSave }) {
   return (
     <LeagueProvider settings={settings} initialLeagueData={leagueData}>
-      <DashboardInner onSettingsSave={onSettingsSave} />
+      <ErrorBoundary>
+        <DashboardInner onSettingsSave={onSettingsSave} />
+      </ErrorBoundary>
     </LeagueProvider>
   );
 }

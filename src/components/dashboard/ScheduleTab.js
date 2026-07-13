@@ -43,6 +43,23 @@ function AutoConfirmCountdown({ isoString }) {
 function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
   const { isDoubles } = useLeague();
   const { currentPlayer, isAdmin } = usePlayerIdentity();
+  const [skipConfirming, setSkipConfirming] = useState(false);
+  const [skipPending, setSkipPending] = useState(false);
+  const [skipError, setSkipError] = useState(null);
+
+  const handleConfirmSkip = async () => {
+    setSkipPending(true);
+    setSkipError(null);
+    try {
+      await onSkip(match.id);
+    } catch (err) {
+      console.error('[ScheduleTab] skip failed:', err);
+      setSkipError('Something went wrong. Please try again.');
+      setSkipConfirming(false);
+    } finally {
+      setSkipPending(false);
+    }
+  };
 
   const p1Name = getParticipantName(match.p1, isDoubles);
   const p2Name = getParticipantName(match.p2, isDoubles);
@@ -127,9 +144,52 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
             >
               Enter Score
             </button>
-            <button className="btn-resolve" onClick={() => onSkip(match.id)}>
-              Skip
-            </button>
+            {skipConfirming ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: 4,
+                }}
+              >
+                {skipError && (
+                  <div
+                    className="picker-error"
+                    role="alert"
+                    style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                  >
+                    {skipError}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    className="btn-back"
+                    onClick={() => {
+                      setSkipConfirming(false);
+                      setSkipError(null);
+                    }}
+                    disabled={skipPending}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn-resolve"
+                    onClick={handleConfirmSkip}
+                    disabled={skipPending}
+                  >
+                    {skipPending ? 'Skipping…' : 'Confirm Skip'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="btn-resolve"
+                onClick={() => setSkipConfirming(true)}
+              >
+                Skip
+              </button>
+            )}
           </div>
         )}
 
