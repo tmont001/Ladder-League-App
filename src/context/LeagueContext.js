@@ -96,7 +96,12 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   );
   const [challenges, setChallenges] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [loadingDb, setLoadingDb] = useState(false); // in-memory never needs loading
+  // Start in loading state when we have a live league but settings are incomplete
+  // (e.g. player joined with minimal { id } settings before fetchLeague ran).
+  // When settings.sport is already defined (organizer from create flow, or a
+  // restoration that called fetchLeague first), we stay at false so DashboardContent
+  // renders immediately without a spinner regression.
+  const [loadingDb, setLoadingDb] = useState(isLive && !settings?.sport);
 
   // ── Load from DB ─────────────────────────────────────────
   // isDoubles is intentionally excluded from the dependency array: we determine

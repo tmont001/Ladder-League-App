@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react';
 import ThemeToggle from './shared/ThemeToggle';
 import { fetchPlayerCodes } from '../lib/db';
 
-function CopyButton({ text, label = 'Copy' }) {
+function CopyButton({ text, label = 'Copy', copiedLabel = '✓ Copied' }) {
   const [copied, setCopied] = useState(false);
   const handle = () => {
     navigator.clipboard.writeText(text).then(() => {
@@ -19,7 +19,7 @@ function CopyButton({ text, label = 'Copy' }) {
   };
   return (
     <button className="code-copy-btn" onClick={handle}>
-      {copied ? '✓ Copied' : label}
+      {copied ? copiedLabel : label}
     </button>
   );
 }
@@ -38,8 +38,8 @@ function PlayerCodeRow({ player, leagueName, leagueUrl }) {
       </div>
       <code className="launch-code-token">{token}</code>
       <div className="launch-code-actions">
-        <CopyButton text={token} label="Copy code" />
-        <CopyButton text={invite} label="Copy invite message" />
+        <CopyButton text={token} label="Copy code" copiedLabel="✓ Code copied" />
+        <CopyButton text={invite} label="Copy invite message" copiedLabel="✓ Invite copied" />
       </div>
     </div>
   );

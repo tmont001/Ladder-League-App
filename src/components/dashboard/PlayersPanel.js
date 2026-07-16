@@ -8,7 +8,7 @@ import Portal from '../shared/Portal';
 import { useLeague } from '../../context/LeagueContext';
 import { fetchPlayerCodes } from '../../lib/db';
 
-function CopyButton({ text }) {
+function CopyButton({ text, label = 'Copy', copiedLabel = '✓ Copied' }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -20,7 +20,7 @@ function CopyButton({ text }) {
 
   return (
     <button className="code-copy-btn" onClick={handleCopy}>
-      {copied ? '✓ Copied' : 'Copy'}
+      {copied ? copiedLabel : label}
     </button>
   );
 }
@@ -42,12 +42,15 @@ function PlayerCodeRow({ player, leagueUrl }) {
 
       <div className="player-code-token-wrap">
         <code className="player-code-token">{token}</code>
-        <CopyButton text={token} />
+        <CopyButton text={token} label="Copy code" copiedLabel="✓ Code copied" />
       </div>
 
       <div className="player-code-share-wrap">
-        <CopyButton text={shareText} />
-        <span className="player-code-share-label">Copy invite message</span>
+        <CopyButton
+          text={shareText}
+          label="Copy invite message"
+          copiedLabel="✓ Invite copied"
+        />
       </div>
     </div>
   );

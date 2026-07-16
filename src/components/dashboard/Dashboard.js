@@ -203,8 +203,10 @@ function DashboardContent({ onSettingsSave }) {
     if (currentPlayer?.id) loadNotifications(currentPlayer.id);
   }, [currentPlayer?.id, loadNotifications]);
 
+  const sport = settings?.sport ?? '';
+  const singlesOrDoubles = settings?.singlesOrDoubles ?? '';
   const SportIcon =
-    settings.sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
+    sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
 
   return (
     <div className="dashboard">
@@ -217,10 +219,10 @@ function DashboardContent({ onSettingsSave }) {
           <div>
             <div className="dashboard-league-name">{settings.leagueName}</div>
             <div className="dashboard-meta">
-              {settings.sport.charAt(0).toUpperCase() + settings.sport.slice(1)}{' '}
+              {sport.charAt(0).toUpperCase() + sport.slice(1)}{' '}
               ·{' '}
-              {settings.singlesOrDoubles.charAt(0).toUpperCase() +
-                settings.singlesOrDoubles.slice(1)}{' '}
+              {singlesOrDoubles.charAt(0).toUpperCase() +
+                singlesOrDoubles.slice(1)}{' '}
               · Round {currentRoundNumber} of {settings.rounds}
             </div>
           </div>
@@ -331,8 +333,11 @@ function DashboardContent({ onSettingsSave }) {
 
 function DashboardInner({ onSettingsSave }) {
   const { currentPlayer, loading } = usePlayerIdentity();
-  const { settings } = useLeague();
-  if (loading)
+  const { settings, loadingDb } = useLeague();
+  // Block DashboardContent until both the player identity AND the league
+  // settings are fully resolved. loadingDb is true when a player joined with
+  // minimal settings (no sport/singlesOrDoubles) and fetchLeague hasn't run yet.
+  if (loading || loadingDb)
     return (
       <div className="dashboard-loading">
         <div className="loading-spinner" />
