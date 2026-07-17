@@ -26,6 +26,7 @@ export function PlayerIdentityProvider({
   leagueId,
   isOrganizer: isOrgProp,
   initialPlayer,
+  onOrganizerSignOut,
   children,
 }) {
   const orgFromStorage = leagueId ? isOrganizer(leagueId) : false;
@@ -119,6 +120,7 @@ export function PlayerIdentityProvider({
         logout,
         isAdmin,
         isOrgIdentity,
+        orgSignOut: isOrgIdentity ? onOrganizerSignOut : undefined,
       }}
     >
       {children}

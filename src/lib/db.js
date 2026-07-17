@@ -31,24 +31,23 @@ import { supabase } from './supabase';
 // ══════════════════════════════════════════════════════════════
 
 export async function createLeague(settings) {
-  const { data, error } = await supabase
-    .from('leagues')
-    .insert({
-      name: settings.leagueName,
-      sport: settings.sport,
-      mode: settings.mode || 'round_robin',
-      singles_or_doubles: settings.singlesOrDoubles,
-      format: settings.format,
-      third_set_format: settings.thirdSetFormat,
-      rounds: settings.rounds,
-      challenge_spots: settings.challengeSpots,
-      auto_advance: settings.autoAdvance,
-    })
-    .select()
-    .single();
-
+  const { data: leagueId, error } = await supabase.rpc(
+    'create_league_for_organizer',
+    {
+      p_name:               settings.leagueName,
+      p_sport:              settings.sport,
+      p_mode:               settings.mode || 'round_robin',
+      p_singles_or_doubles: settings.singlesOrDoubles,
+      p_format:             settings.format,
+      p_third_set_format:   settings.thirdSetFormat,
+      p_rounds:             settings.rounds,
+      p_challenge_spots:    settings.challengeSpots,
+      p_auto_advance:       settings.autoAdvance,
+    },
+  );
   if (error) throw error;
-  return data;
+  // RPC returns a scalar UUID; wrap to preserve { id } shape App.js expects.
+  return { id: leagueId };
 }
 
 export async function fetchLeague(leagueId) {

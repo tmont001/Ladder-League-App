@@ -8,6 +8,7 @@ import LeagueSetupStep1 from './components/LeagueSetupStep1';
 import LeagueSetupStep2 from './components/LeagueSetupStep2';
 import LaunchCodesScreen from './components/LaunchCodesScreen';
 import Dashboard from './components/dashboard/Dashboard';
+import OrganizerSignIn from './components/auth/OrganizerSignIn';
 import {
   createLeague,
   createPlayers,
@@ -16,12 +17,15 @@ import {
   saveInitialRankings,
   fetchLeague,
 } from './lib/db';
+import { supabase } from './lib/supabase';
+import { signOutOrganizer } from './lib/auth';
 import {
   setActiveLeagueId,
   setOrganizer,
   getActiveLeagueId,
   isOrganizer,
   clearActiveLeague,
+  clearOrganizer,
 } from './lib/session';
 
 // Steps:
@@ -54,6 +58,74 @@ function AppContent() {
     return !!storedId && !storedId.startsWith('local-');
   });
   const [restoreError, setRestoreError] = useState(null);
+
+  // ── Organizer auth state ─────────────────────────────────
+  // authLoading starts true and is cleared by INITIAL_SESSION.
+  // The home screen is withheld until this resolves so the
+  // "Create League" button doesn't flash before auth is known.
+  const [organizerSession, setOrganizerSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Detect a failed Magic Link callback (expired, already used, etc.).
+  // Supabase appends #error=access_denied&error_code=otp_expired to the
+  // redirect URL. Check both hash and query string for portability.
+  const [linkExpiredOrInvalid, setLinkExpiredOrInvalid] = useState(() => {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const searchParams = new URLSearchParams(window.location.search);
+    return !!(
+      hashParams.get('error') ||
+      hashParams.get('error_code') ||
+      searchParams.get('error') ||
+      searchParams.get('error_code')
+    );
+  });
+
+  // Clean error params from the URL and route to the sign-in screen
+  // so the user can request a fresh link.
+  useEffect(() => {
+    if (!linkExpiredOrInvalid) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    setScreen('organizer-signin');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const consumePending = (session) => {
+      if (!session) return;
+      const action = localStorage.getItem('ll_pending_action');
+      if (action === 'create-league') {
+        localStorage.removeItem('ll_pending_action');
+        setScreen('setup1');
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'INITIAL_SESSION') {
+          setOrganizerSession(session ?? null);
+          setAuthLoading(false);
+          consumePending(session);
+          return;
+        }
+        if (event === 'SIGNED_IN') {
+          setOrganizerSession(session);
+          setAuthLoading(false);
+          consumePending(session);
+          return;
+        }
+        if (event === 'SIGNED_OUT') {
+          setOrganizerSession(null);
+          setAuthLoading(false);
+          return;
+        }
+        // TOKEN_REFRESHED, USER_UPDATED, PASSWORD_RECOVERY, or any future
+        // event: clear the loading gate so the home screen is never stuck.
+        setAuthLoading(false);
+      },
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (window.location.pathname !== '/dashboard') return;
@@ -165,11 +237,38 @@ function AppContent() {
     }
   };
 
+  // ── Organizer create-league entry point ──────────────────
+  const handleCreateLeagueClick = () => {
+    if (organizerSession) {
+      setScreen('setup1');
+    } else {
+      localStorage.setItem('ll_pending_action', 'create-league');
+      setScreen('organizer-signin');
+    }
+  };
+
+  const handleOrganizerSignOut = async () => {
+    // Throws on failure — PlayerChip catches and shows a generic retry
+    // message, keeping the user on their current screen.
+    await signOutOrganizer();
+    const leagueId = effectiveSettings?.id;
+    if (leagueId) clearOrganizer(leagueId);
+    clearActiveLeague();
+    setOrganizerSession(null);
+    setEffectiveSettings(null);
+    setLeagueSettings(null);
+    setLeagueData(null);
+    setScreen('home');
+  };
+
   // ── Join flow ────────────────────────────────────────────
   const handleJoined = (player) => {
     setJoinedPlayer(player);
     // Build minimal settings from the player's league data
     setEffectiveSettings(player.leagueSettings || { id: player.leagueId });
+    // Store the active league so the restoration effect can reload it on
+    // refresh — mirrors what handleLaunch does for the organizer flow.
+    setActiveLeagueId(player.leagueId);
     setScreen('dashboard');
     window.history.pushState({}, '', '/dashboard');
   };
@@ -188,10 +287,12 @@ function AppContent() {
     <ThemeProvider sport={activeSport}>
       <div className="app">
         <main id="main-content">
-          {restoring && (
+          {(restoring || authLoading) && (
             <div className="dashboard-loading">
               <div className="loading-spinner" />
-              <div className="loading-text">Restoring your league…</div>
+              <div className="loading-text">
+                {restoring ? 'Restoring your league…' : ' '}
+              </div>
             </div>
           )}
           {restoreError && (
@@ -209,10 +310,21 @@ function AppContent() {
               </button>
             </div>
           )}
-          {!restoring && !restoreError && screen === 'home' && (
+          {!restoring && !authLoading && !restoreError && screen === 'home' && (
             <HomeScreen
-              onCreateLeague={() => setScreen('setup1')}
+              onCreateLeague={handleCreateLeagueClick}
               onJoinLeague={() => setScreen('join')}
+            />
+          )}
+
+          {screen === 'organizer-signin' && (
+            <OrganizerSignIn
+              onBack={() => {
+                localStorage.removeItem('ll_pending_action');
+                setLinkExpiredOrInvalid(false);
+                setScreen('home');
+              }}
+              linkExpired={linkExpiredOrInvalid}
             />
           )}
 
@@ -259,6 +371,7 @@ function AppContent() {
               leagueId={activeSettings?.id}
               isOrganizer={isOrganizerSession}
               initialPlayer={joinedPlayer}
+              onOrganizerSignOut={handleOrganizerSignOut}
             >
               <Dashboard
                 settings={activeSettings}

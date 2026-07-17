@@ -146,9 +146,26 @@ function formatTimeAgo(iso) {
 }
 
 function PlayerChip() {
-  const { currentPlayer, logout } = usePlayerIdentity();
+  const { currentPlayer, logout, isOrgIdentity, orgSignOut } = usePlayerIdentity();
   const [showMenu, setShowMenu] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState(null);
   if (!currentPlayer) return null;
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    setSignOutError(null);
+    try {
+      await orgSignOut();
+      // On success App.js clears state and navigates home — this
+      // component unmounts so no further state update is needed.
+    } catch {
+      // Keep the user on their current screen; do not expose the raw error.
+      setSigningOut(false);
+      setSignOutError('Sign out failed. Please try again.');
+    }
+  };
+
   return (
     <div className="player-chip-wrap">
       <button className="player-chip" onClick={() => setShowMenu((v) => !v)}>
@@ -165,9 +182,31 @@ function PlayerChip() {
           {currentPlayer.role === 'admin' && (
             <div className="player-chip-role">Admin</div>
           )}
-          <button className="player-chip-logout" onClick={logout}>
-            Switch Player
-          </button>
+          {signOutError && (
+            <div
+              role="alert"
+              style={{
+                fontSize: '0.75rem',
+                color: 'var(--color-error, #ef4444)',
+                padding: '2px 12px 4px',
+              }}
+            >
+              {signOutError}
+            </div>
+          )}
+          {isOrgIdentity && orgSignOut ? (
+            <button
+              className="player-chip-logout"
+              onClick={handleSignOut}
+              disabled={signingOut}
+            >
+              {signingOut ? 'Signing out…' : 'Sign Out'}
+            </button>
+          ) : (
+            <button className="player-chip-logout" onClick={logout}>
+              Switch Player
+            </button>
+          )}
         </div>
       )}
     </div>
