@@ -216,7 +216,7 @@ function PlayerChip() {
 function DashboardContent({ onSettingsSave }) {
   const { settings, rounds, currentRoundNumber, loadNotifications, saveSettings } =
     useLeague();
-  const { currentPlayer, isAdmin } = usePlayerIdentity();
+  const { currentPlayer, isAdmin, isOrgIdentity } = usePlayerIdentity();
   const [activeTab, setActiveTab] = useState('standings');
   const [showPlayers, setShowPlayers] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -238,9 +238,11 @@ function DashboardContent({ onSettingsSave }) {
     }
   };
 
+  // Organizer identity uses the sentinel '__organizer__', not a real UUID.
+  // Skipping the load avoids a 400 from the UUID-typed player_id column.
   useEffect(() => {
-    if (currentPlayer?.id) loadNotifications(currentPlayer.id);
-  }, [currentPlayer?.id, loadNotifications]);
+    if (!isOrgIdentity && currentPlayer?.id) loadNotifications(currentPlayer.id);
+  }, [isOrgIdentity, currentPlayer?.id, loadNotifications]);
 
   const sport = settings?.sport ?? '';
   const singlesOrDoubles = settings?.singlesOrDoubles ?? '';

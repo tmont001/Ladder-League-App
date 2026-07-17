@@ -13,7 +13,7 @@ import {
   createLeague,
   createPlayers,
   createTeams,
-  createMatches,
+  createInitialMatches,
   saveInitialRankings,
   fetchLeague,
 } from './lib/db';
@@ -181,22 +181,15 @@ function AppContent() {
           allLocalPlayers.map((p) => ({ ...p, isAdmin: false })),
         );
 
-        // Pre-generate team UUIDs client-side.
-        // ladder.teams has a table-level grant, so explicit id is allowed.
-        const teamIdMap = {};
-        localTeams.forEach((t) => {
-          teamIdMap[t.id] = crypto.randomUUID();
-        });
-
-        // Remap team objects: pre-generated UUIDs + DB player IDs.
-        const remappedTeams = localTeams.map((team) => ({
-          id: teamIdMap[team.id],
-          players: team.players.map((p) => ({ ...p, id: playerIdMap[p.id] })),
+        // Create teams via secure RPC; server assigns UUIDs.
+        // createTeams returns { [localTeamId]: dbTeamId }.
+        const teamsInput = localTeams.map((team) => ({
+          localId:   team.id,
+          playerIds: team.players.map((p) => playerIdMap[p.id]),
         }));
+        const teamIdMap = await createTeams(leagueId, teamsInput);
 
-        await createTeams(leagueId, remappedTeams);
-
-        await createMatches(leagueId, generatedLeague.matches, true, teamIdMap);
+        await createInitialMatches(leagueId, generatedLeague.matches, true, teamIdMap);
 
         // Build dbTeams for rankings — all IDs already known, no DB call needed.
         const dbTeams = localTeams.map((team) => ({
@@ -204,7 +197,7 @@ function AppContent() {
           players: team.players.map((p) => ({ ...p, id: playerIdMap[p.id] })),
         }));
 
-        await saveInitialRankings(leagueId, dbTeams, true);
+        await saveInitialRankings(leagueId, dbTeams);
         dbParticipants = dbTeams;
 
       } else {
@@ -215,9 +208,9 @@ function AppContent() {
           localPlayers.map((p) => ({ ...p, isAdmin: false })),
         );
 
-        await createMatches(leagueId, generatedLeague.matches, false, playerIdMap);
+        await createInitialMatches(leagueId, generatedLeague.matches, false, playerIdMap);
 
-        await saveInitialRankings(leagueId, dbPlayers, false);
+        await saveInitialRankings(leagueId, dbPlayers);
         dbParticipants = dbPlayers;
       }
 

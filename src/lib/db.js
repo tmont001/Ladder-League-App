@@ -62,10 +62,14 @@ export async function fetchLeague(leagueId) {
 }
 
 export async function updateLeagueSettings(leagueId, patch) {
-  const { error } = await supabase
-    .from('leagues')
-    .update(patch)
-    .eq('id', leagueId);
+  const { error } = await supabase.rpc('update_league_settings_secure', {
+    p_league_id:        leagueId,
+    p_name:             patch.name,
+    p_format:           patch.format,
+    p_third_set_format: patch.third_set_format,
+    p_challenge_spots:  patch.challenge_spots,
+    p_auto_advance:     patch.auto_advance,
+  });
   if (error) throw error;
 }
 
@@ -102,12 +106,15 @@ function dbLeagueToSettings(row) {
 // PLAYERS
 // ══════════════════════════════════════════════════════════════
 
-// Creates players serially and returns { dbPlayers, idMap }.
+// Creates players serially via the add_player_for_organizer RPC and
+// returns { dbPlayers, idMap }.
 //
-// Serial (not batch) because the ladder.players INSERT column grant
-// excludes `id` — the DB assigns each UUID via gen_random_uuid().
-// Inserting one row at a time with .single() gives us the DB-assigned
-// UUID for each player without relying on returned-row ordering.
+// Serial (not batch) so each call returns a single DB-assigned UUID
+// without relying on ordering.  The RPC validates ownership, trims
+// the name, and lets the DB DEFAULT generate session_token.
+//
+// dbPlayers is a minimal shape — LeagueContext re-fetches from DB on
+// mount so this is only used as initialLeagueData (instant paint).
 //
 // idMap: { localPlayerId → dbPlayerId }
 // Callers that need session_token (LaunchCodesScreen, PlayersPanel)
@@ -117,23 +124,34 @@ export async function createPlayers(leagueId, players) {
   const idMap = {};
 
   for (const p of players) {
-    const { data, error } = await supabase
-      .from('players')
-      .insert({
-        league_id: leagueId,
-        name: p.name,
-        rating: p.rating || null,
-        rating_type: p.ratingType || null,
-        utr_url: p.utrUrl || null,
-        role: p.isAdmin ? 'admin' : 'player',
-        // session_token intentionally omitted — DB DEFAULT fires automatically
-      })
-      .select('id, league_id, name, rating, rating_type, utr_url, role, status, last_active_at, joined_at')
-      .single();
-
+    const { data: newId, error } = await supabase.rpc(
+      'add_player_for_organizer',
+      {
+        p_league_id:   leagueId,
+        p_name:        p.name,
+        p_rating:      p.rating || null,
+        p_rating_type: p.ratingType || null,
+        p_utr_url:     p.utrUrl || null,
+        p_role:        p.isAdmin ? 'admin' : 'player',
+      },
+    );
     if (error) throw error;
-    idMap[p.id] = data.id;
-    dbPlayers.push(dbPlayerToPlayer(data));
+    idMap[p.id] = newId;
+    // Minimal shape; LeagueContext overwrites on mount via fetchPlayers.
+    dbPlayers.push({
+      id: newId,
+      leagueId,
+      name: p.name,
+      rating: p.rating || null,
+      ratingType: p.ratingType || null,
+      utrUrl: p.utrUrl || null,
+      ustaRating: p.rating || '0',
+      sessionToken: undefined,
+      role: p.isAdmin ? 'admin' : 'player',
+      status: 'active',
+      lastActiveAt: null,
+      joinedAt: null,
+    });
   }
 
   return { dbPlayers, idMap };
@@ -190,11 +208,12 @@ export async function fetchPlayerByToken(token) {
 
 // Organizer code sheet — returns (id, name, role, session_token) for
 // every player in the league, ordered by join date.
+// Calls get_player_codes_secure which verifies organizer ownership.
 // Must only be called from LaunchCodesScreen and PlayersPanel.
 // Results must NEVER be merged into LeagueContext participants.
 export async function fetchPlayerCodes(leagueId) {
   const { data, error } = await supabase
-    .rpc('get_player_codes', { p_league_id: leagueId });
+    .rpc('get_player_codes_secure', { p_league_id: leagueId });
   if (error) throw error;
   return data || [];
 }
@@ -223,26 +242,25 @@ function dbPlayerToPlayer(row) {
 // TEAMS (DOUBLES)
 // ══════════════════════════════════════════════════════════════
 
-// Callers must supply team.id as a pre-generated crypto.randomUUID().
-// The ladder.teams grant is table-level, so explicit id insertion is
-// permitted (unlike ladder.players, which blocks client-supplied id).
-// No return value — callers build their teamIdMap before this call.
+// Creates doubles teams via the add_team_with_members_for_organizer RPC.
+// Accepts teams as [{ localId, playerIds: [dbPlayerId, ...] }].
+// The RPC assigns server-generated team UUIDs and creates team_members
+// atomically.  Returns { [localId]: dbTeamId } for match and ranking
+// ID mapping downstream.
 export async function createTeams(leagueId, teams) {
-  for (const team of teams) {
-    const { error: teamErr } = await supabase
-      .from('teams')
-      .insert({ id: team.id, league_id: leagueId });
-    if (teamErr) throw teamErr;
-
-    const members = team.players.map((p) => ({
-      team_id: team.id,
-      player_id: p.id,
-    }));
-    const { error: membErr } = await supabase
-      .from('team_members')
-      .insert(members);
-    if (membErr) throw membErr;
+  const teamIdMap = {};
+  for (const t of teams) {
+    const { data: teamId, error } = await supabase.rpc(
+      'add_team_with_members_for_organizer',
+      {
+        p_league_id:  leagueId,
+        p_player_ids: t.playerIds,
+      },
+    );
+    if (error) throw error;
+    teamIdMap[t.localId] = teamId;
   }
+  return teamIdMap;
 }
 
 // Fetches teams with embedded player data via FK join.
@@ -299,6 +317,39 @@ export async function createMatches(leagueId, matches, isDoubles = false, idMap 
   });
 
   const { data, error } = await supabase.from('matches').insert(rows).select();
+  if (error) throw error;
+  return data;
+}
+
+// Sends the full initial schedule to the DB via the
+// create_matches_for_organizer RPC, which validates ownership and
+// participant membership before inserting atomically.
+//
+// Keeps the same idMap / getMappedParticipantId convention as
+// createMatches so App.js callers need only change the function name.
+//
+// createMatches (below) is preserved for challenge and scheduled-match
+// creation from LeagueContext — those are player actions untouched by
+// this milestone.
+export async function createInitialMatches(leagueId, matches, isDoubles = false, idMap = {}) {
+  const rows = matches.map((m) => {
+    const p1Id = getMappedParticipantId(m.p1, idMap, 'p1');
+    const p2Id = getMappedParticipantId(m.p2, idMap, 'p2');
+    return {
+      round_number: m.round,
+      type:         m.type || 'scheduled',
+      is_bye:       m.isBye || false,
+      p1_player_id: isDoubles ? null : p1Id,
+      p2_player_id: isDoubles ? null : p2Id,
+      p1_team_id:   isDoubles ? p1Id  : null,
+      p2_team_id:   isDoubles ? p2Id  : null,
+    };
+  });
+
+  const { data, error } = await supabase.rpc(
+    'create_matches_for_organizer',
+    { p_league_id: leagueId, p_matches: rows },
+  );
   if (error) throw error;
   return data;
 }
@@ -385,10 +436,9 @@ export async function fetchDispute(matchId) {
 }
 
 export async function skipMatch(matchId) {
-  const { error } = await supabase
-    .from('matches')
-    .update({ status: 'skipped' })
-    .eq('id', matchId);
+  const { error } = await supabase.rpc('skip_match_secure', {
+    p_match_id: matchId,
+  });
   if (error) throw error;
 }
 
@@ -452,33 +502,15 @@ export async function fetchChallenges(leagueId) {
 // RANKINGS
 // ══════════════════════════════════════════════════════════════
 
-export async function saveInitialRankings(
-  leagueId,
-  seededParticipants,
-  isDoubles,
-) {
-  const rows = seededParticipants.map((p, i) => ({
-    league_id: leagueId,
-    player_id: isDoubles ? null : p.id,
-    team_id: isDoubles ? p.id : null,
-    rank: i + 1,
-  }));
-
-  const { error } = await supabase.from('rankings').insert(rows);
+export async function saveInitialRankings(leagueId, seededParticipants) {
+  const participants = seededParticipants.map((p) => ({ id: p.id }));
+  // p_is_doubles intentionally absent: the RPC derives singles_or_doubles
+  // from ladder.leagues so the browser cannot override participant mode.
+  const { error } = await supabase.rpc('seed_rankings_for_organizer', {
+    p_league_id:    leagueId,
+    p_participants: participants,
+  });
   if (error) throw error;
-
-  const historyRows = seededParticipants.map((p, i) => ({
-    league_id: leagueId,
-    player_id: isDoubles ? null : p.id,
-    team_id: isDoubles ? p.id : null,
-    rank: i + 1,
-    previous_rank: null,
-    reason: 'initial_seeding',
-  }));
-  const { error: hErr } = await supabase
-    .from('rank_history')
-    .insert(historyRows);
-  if (hErr) throw hErr;
 }
 
 export async function fetchRankings(leagueId) {
@@ -515,6 +547,10 @@ export async function createNotification(
 }
 
 export async function fetchNotifications(playerId) {
+  // '__organizer__' is a sentinel, not a UUID. Guard here so a misrouted
+  // call never reaches the UUID-typed player_id column.
+  if (!playerId || playerId === '__organizer__') return [];
+
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
