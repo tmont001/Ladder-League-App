@@ -40,6 +40,53 @@ function AutoConfirmCountdown({ isoString }) {
   );
 }
 
+function SubmittedResultSummary({ match, isDoubles }) {
+  const result = match.result;
+  if (!result) return null;
+  const p1Name = getParticipantName(match.p1, isDoubles);
+  const p2Name = getParticipantName(match.p2, isDoubles);
+  const winnerName = result.winnerId === match.p1?.id ? p1Name : p2Name;
+  const loserName  = result.winnerId === match.p1?.id ? p2Name : p1Name;
+  const setScoreLine = result.setScores
+    ?.map((sc) =>
+      sc.tiebreak ? `${sc.p1}–${sc.p2} (${sc.tiebreak})` : `${sc.p1}–${sc.p2}`,
+    )
+    .join(', ');
+  const dateStr = result.date
+    ? new Date(result.date + 'T12:00:00').toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null;
+  const metaLine = [result.location, dateStr].filter(Boolean).join(' · ');
+  return (
+    <div style={{ fontSize: '0.78rem', lineHeight: 1.4, marginBottom: '0.35rem' }}>
+      <div
+        style={{
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
+          fontSize: '0.7rem',
+          color: 'var(--text-dim, #888)',
+          marginBottom: '0.1rem',
+        }}
+      >
+        Submitted score
+      </div>
+      <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+        {winnerName} defeated {loserName}
+      </div>
+      <div style={{ color: 'var(--text)' }}>{setScoreLine}</div>
+      {metaLine && (
+        <div style={{ color: 'var(--text-dim, #888)', fontSize: '0.75rem' }}>
+          {metaLine}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
   const { isDoubles } = useLeague();
   const { currentPlayer, isAdmin } = usePlayerIdentity();
@@ -69,15 +116,33 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
   const isConfirmed = match.status === 'confirmed';
   const isDisputed = match.status === 'disputed';
 
-  // A player can confirm if they're the opponent (not the submitter)
-  const isParticipant =
-    match.p1?.id === currentPlayer?.id || match.p2?.id === currentPlayer?.id;
+  // A player can confirm if they're on the opposing side (not the submitter's).
+  // For doubles, p1/p2 are team objects — test the nested players array.
+  const isParticipant = isDoubles
+    ? (match.p1?.players?.some((p) => p.id === currentPlayer?.id) ||
+       match.p2?.players?.some((p) => p.id === currentPlayer?.id))
+    : (match.p1?.id === currentPlayer?.id ||
+       match.p2?.id === currentPlayer?.id);
+
+  // Determine whether the current player is on the same side as the submitter.
+  // For doubles this blocks both the submitter and their partner.
+  let isSameSideAsSubmitter = false;
+  if (match.submittedBy && currentPlayer) {
+    if (isDoubles) {
+      const subOnP1 = match.p1?.players?.some((p) => p.id === match.submittedBy);
+      const subOnP2 = match.p2?.players?.some((p) => p.id === match.submittedBy);
+      const curOnP1 = match.p1?.players?.some((p) => p.id === currentPlayer.id);
+      const curOnP2 = match.p2?.players?.some((p) => p.id === currentPlayer.id);
+      isSameSideAsSubmitter =
+        (subOnP1 && curOnP1) || (subOnP2 && curOnP2);
+    } else {
+      isSameSideAsSubmitter = match.submittedBy === currentPlayer.id;
+    }
+  }
+
   const canConfirmAsPlayer =
-    isAwaiting &&
-    currentPlayer &&
-    match.submittedBy !== currentPlayer.id &&
-    isParticipant;
-  // Admin can confirm any awaiting match
+    isAwaiting && currentPlayer && isParticipant && !isSameSideAsSubmitter;
+  // Admin can confirm or override any awaiting / disputed match
   const canConfirm = canConfirmAsPlayer || (isAwaiting && isAdmin);
 
   return (
@@ -195,6 +260,7 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
 
         {isAwaiting && (
           <div className="match-actions">
+            <SubmittedResultSummary match={match} isDoubles={isDoubles} />
             {canConfirm ? (
               <>
                 <button
@@ -218,6 +284,7 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
 
         {isDisputed && (
           <div className="match-actions">
+            <SubmittedResultSummary match={match} isDoubles={isDoubles} />
             {isAdmin ? (
               <button
                 className="btn-score-entry"
@@ -281,22 +348,26 @@ function RoundSection({ round, onEnterScore, onConfirm, onDispute, onSkip }) {
 }
 
 function DisputeModal({ match, onClose }) {
-  const { disputeResult } = useLeague();
+  const { disputeResult, isDoubles } = useLeague();
   const { currentPlayer } = usePlayerIdentity();
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   const handleSubmit = async () => {
     if (!reason.trim()) return;
     setLoading(true);
+    setError(null);
     try {
-      await disputeResult(match.id, currentPlayer?.id, reason.trim());
+      await disputeResult(match.id, currentPlayer?.sessionToken, reason.trim());
       onClose();
     } catch (err) {
-      console.error(err);
+      setError(err?.message || 'Failed to submit dispute. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <Portal>
       <div className="modal-overlay" onClick={onClose}>
@@ -308,6 +379,18 @@ function DisputeModal({ match, onClose }) {
             </button>
           </div>
           <div className="modal-body">
+            {match.result && (
+              <div
+                style={{
+                  border: '1px solid var(--border, #e0e0e0)',
+                  borderRadius: '6px',
+                  padding: '0.6rem 0.75rem',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                <SubmittedResultSummary match={match} isDoubles={isDoubles} />
+              </div>
+            )}
             <p
               style={{
                 fontSize: '0.85rem',
@@ -321,9 +404,18 @@ function DisputeModal({ match, onClose }) {
               className="bulk-textarea"
               placeholder="e.g. The score was 6-4, 3-6, 7-5, not 6-4, 6-3"
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => { setReason(e.target.value); setError(null); }}
               rows={3}
             />
+            {error && (
+              <div
+                className="modal-error"
+                role="alert"
+                style={{ marginTop: '0.5rem' }}
+              >
+                {error}
+              </div>
+            )}
           </div>
           <div className="modal-footer">
             <button className="btn-back" onClick={onClose}>
@@ -344,15 +436,19 @@ function DisputeModal({ match, onClose }) {
 }
 
 function ScheduleTab() {
-  const { rounds, confirmResult, resolveMatch, settings } = useLeague();
-  const { currentPlayer } = usePlayerIdentity();
+  const { rounds, confirmResult, resolveDispute, resolveMatch, settings } = useLeague();
+  const { currentPlayer, isOrgIdentity } = usePlayerIdentity();
   const challengesEnabled = settings?.challengesEnabled !== false;
   const [scoreMatch, setScoreMatch] = useState(null);
   const [disputeMatch, setDisputeMatch] = useState(null);
   const [showChallenge, setShowChallenge] = useState(false);
 
   const handleConfirm = async (match) => {
-    await confirmResult(match.id, currentPlayer?.id || '__admin__');
+    if (isOrgIdentity) {
+      await resolveDispute(match.id);
+    } else {
+      await confirmResult(match.id, currentPlayer?.sessionToken || null);
+    }
   };
   const handleSkip = async (matchId) => {
     await resolveMatch(matchId);

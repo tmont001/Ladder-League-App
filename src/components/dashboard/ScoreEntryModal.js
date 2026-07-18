@@ -47,6 +47,10 @@ function isValidTennisSet(p1, p2, isSuperTb, gamesPerSet, tiebreakFormat) {
   if (a === g && b <= g - 2) return true;
   if (b === g && a <= g - 2) return true;
 
+  // Extended clean win: g+1 vs g-1 (e.g. 7–5) — valid in all tiebreak formats
+  if (a === g + 1 && b === g - 1) return true;
+  if (b === g + 1 && a === g - 1) return true;
+
   // Close win (g vs g-1) — only valid when no tiebreak is used
   if (fmt === 'no_tiebreak') {
     if (a === g && b === g - 1) return true;
@@ -304,6 +308,7 @@ function ScoreEntryModal({ match, onClose }) {
   const [date, setDate] = useState('');
   const [location, setLocation] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSetChange = (idx, field, val) => {
     setSets((prev) => {
@@ -408,14 +413,14 @@ function ScoreEntryModal({ match, onClose }) {
       setError('Please enter valid scores for all played sets.');
       return;
     }
+    setSubmitting(true);
     try {
-      await submitResult(match.id, result, currentPlayer?.id || null);
+      await submitResult(match.id, result, currentPlayer?.sessionToken || null);
       onClose();
     } catch (err) {
-      const msg =
-        err?.message ||
-        (typeof err === 'string' ? err : 'Failed to submit. Please try again.');
-      setError(msg);
+      setError(err?.message || 'Failed to submit. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -527,10 +532,10 @@ function ScoreEntryModal({ match, onClose }) {
             <button
               className="btn-next"
               onClick={handleSubmit}
-              disabled={!result}
-              aria-disabled={!result}
+              disabled={!result || submitting}
+              aria-disabled={!result || submitting}
             >
-              Submit Score
+              {submitting ? 'Submitting…' : 'Submit Score'}
             </button>
           </div>
         </div>

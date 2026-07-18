@@ -17,6 +17,7 @@ import {
   confirmMatchResult,
   openDispute,
   skipMatch,
+  resolveDispute as resolveDisputeViaRpc,
   createMatches,
   createChallenge,
   acceptChallenge,
@@ -214,19 +215,14 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   // ── Actions ───────────────────────────────────────────────
 
   const submitResult = useCallback(
-    async (matchId, result, submittedByPlayerId) => {
+    async (matchId, result, sessionToken) => {
       if (isLive) {
-        await submitMatchResult(matchId, result, submittedByPlayerId);
+        await submitMatchResult(matchId, result, sessionToken);
       } else {
         setRawMatches((prev) =>
           prev.map((m) =>
             m.id === matchId
-              ? {
-                  ...m,
-                  status: 'awaiting_confirmation',
-                  result,
-                  submitted_by: submittedByPlayerId,
-                }
+              ? { ...m, status: 'awaiting_confirmation', result }
               : m,
           ),
         );
@@ -236,9 +232,9 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   );
 
   const confirmResult = useCallback(
-    async (matchId, confirmedByPlayerId) => {
+    async (matchId, sessionToken) => {
       if (isLive) {
-        await confirmMatchResult(matchId, confirmedByPlayerId);
+        await confirmMatchResult(matchId, sessionToken);
       } else {
         setRawMatches((prev) =>
           prev.map((m) =>
@@ -251,13 +247,28 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
   );
 
   const disputeResult = useCallback(
-    async (matchId, openedByPlayerId, reason, counterScore) => {
+    async (matchId, sessionToken, reason, counterScore) => {
       if (isLive) {
-        await openDispute(matchId, openedByPlayerId, reason, counterScore);
+        await openDispute(matchId, sessionToken, reason, counterScore);
       } else {
         setRawMatches((prev) =>
           prev.map((m) =>
             m.id === matchId ? { ...m, status: 'disputed' } : m,
+          ),
+        );
+      }
+    },
+    [isLive],
+  );
+
+  const resolveDispute = useCallback(
+    async (matchId, resolution) => {
+      if (isLive) {
+        await resolveDisputeViaRpc(matchId, resolution);
+      } else {
+        setRawMatches((prev) =>
+          prev.map((m) =>
+            m.id === matchId ? { ...m, status: 'confirmed' } : m,
           ),
         );
       }
@@ -405,6 +416,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         submitResult,
         confirmResult,
         disputeResult,
+        resolveDispute,
         resolveMatch,
         saveSettings,
         addChallenge,

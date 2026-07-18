@@ -264,12 +264,14 @@ export async function createTeams(leagueId, teams) {
 }
 
 // Fetches teams with embedded player data via FK join.
-// PostgREST resolves players(*) using the column-level grant on
-// ladder.players, so session_token is absent from nested player rows.
+// players(*) is intentionally replaced with an explicit safe column list:
+// ladder.players has only column-level SELECT grants (no table-level grant),
+// so SELECT * is rejected by PostgreSQL with 403.  Listing only the granted
+// columns is the correct fix — do not broaden table privileges to allow *.
 export async function fetchTeams(leagueId) {
   const { data: teams, error } = await supabase
     .from('teams')
-    .select(`id, team_members(player_id, players(*))`)
+    .select(`id, team_members(player_id, players(id, league_id, name, rating, rating_type, utr_url, role, status, last_active_at, joined_at))`)
     .eq('league_id', leagueId);
 
   if (error) throw error;
@@ -365,61 +367,81 @@ export async function fetchMatches(leagueId) {
   return data;
 }
 
-export async function submitMatchResult(matchId, result, submittedByPlayerId) {
-  const autoConfirmAfter = new Date();
-  autoConfirmAfter.setHours(autoConfirmAfter.getHours() + 48);
-
-  const { error } = await supabase
-    .from('matches')
-    .update({
-      status: 'awaiting_confirmation',
-      result,
-      submitted_by: submittedByPlayerId,
-      submitted_at: new Date().toISOString(),
-      auto_confirm_after: autoConfirmAfter.toISOString(),
-    })
-    .eq('id', matchId);
-
-  if (error) throw error;
+function rpcErrorMessage(err) {
+  const msg = err?.message || '';
+  if (msg === 'invalid_token' || msg === 'player_inactive')
+    return 'Session expired. Please log in again.';
+  if (msg === 'match_not_found')
+    return 'Match not found.';
+  if (msg === 'bye_match')
+    return 'This is a bye match.';
+  if (msg === 'match_not_pending')
+    return 'This match has already been submitted.';
+  if (msg === 'not_participant')
+    return 'You are not a participant in this match.';
+  if (msg === 'invalid_result' || msg === 'invalid_winner')
+    return 'Invalid match result. Please check the scores and try again.';
+  if (msg === 'match_not_awaiting_confirmation')
+    return 'This match cannot be confirmed or disputed right now.';
+  if (msg === 'cannot_confirm_own_submission')
+    return 'You cannot confirm your own submission.';
+  if (msg === 'cannot_dispute_own_submission')
+    return 'You cannot dispute your own submission.';
+  if (msg === 'reason_empty')
+    return 'Dispute reason cannot be empty.';
+  if (msg === 'reason_too_long')
+    return 'Dispute reason is too long (max 1000 characters).';
+  if (msg === 'dispute_already_open')
+    return 'A dispute is already open for this match.';
+  if (msg === 'not_authenticated')
+    return 'Organizer session required.';
+  if (msg === 'not_league_organizer')
+    return 'You do not own this league.';
+  if (msg === 'match_not_resolvable')
+    return 'This match cannot be resolved right now.';
+  if (msg === 'invalid_match_state')
+    return 'This match is missing submission information and cannot be updated.';
+  return 'Something went wrong. Please try again.';
 }
 
-export async function confirmMatchResult(matchId, confirmedByPlayerId) {
-  const { error } = await supabase
-    .from('matches')
-    .update({
-      status: 'confirmed',
-      confirmed_by: confirmedByPlayerId,
-      confirmed_at: new Date().toISOString(),
-    })
-    .eq('id', matchId);
+export async function submitMatchResult(matchId, result, sessionToken) {
+  const { error } = await supabase.rpc('submit_match_result_secure', {
+    p_match_id: matchId,
+    p_result:   result,
+    p_token:    sessionToken,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
+}
 
-  if (error) throw error;
+export async function confirmMatchResult(matchId, sessionToken) {
+  const { error } = await supabase.rpc('confirm_match_result_secure', {
+    p_match_id: matchId,
+    p_token:    sessionToken,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
 }
 
 export async function openDispute(
   matchId,
-  openedByPlayerId,
+  sessionToken,
   reason,
   counterScore = null,
 ) {
-  const { error: matchErr } = await supabase
-    .from('matches')
-    .update({ status: 'disputed' })
-    .eq('id', matchId);
-  if (matchErr) throw matchErr;
-
-  const autoEscalate = new Date();
-  autoEscalate.setHours(autoEscalate.getHours() + 24);
-
-  const { error: dispErr } = await supabase.from('disputes').insert({
-    match_id: matchId,
-    opened_by: openedByPlayerId,
-    reason,
-    counter_score: counterScore,
-    status: 'open',
-    auto_escalate_after: autoEscalate.toISOString(),
+  const { error } = await supabase.rpc('open_match_dispute_secure', {
+    p_match_id:      matchId,
+    p_token:         sessionToken,
+    p_reason:        reason,
+    p_counter_score: counterScore,
   });
-  if (dispErr) throw dispErr;
+  if (error) throw new Error(rpcErrorMessage(error));
+}
+
+export async function resolveDispute(matchId, resolution = null) {
+  const { error } = await supabase.rpc('resolve_dispute_for_organizer', {
+    p_match_id:   matchId,
+    p_resolution: resolution,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
 }
 
 export async function fetchDispute(matchId) {
@@ -439,7 +461,7 @@ export async function skipMatch(matchId) {
   const { error } = await supabase.rpc('skip_match_secure', {
     p_match_id: matchId,
   });
-  if (error) throw error;
+  if (error) throw new Error(rpcErrorMessage(error));
 }
 
 // ══════════════════════════════════════════════════════════════
