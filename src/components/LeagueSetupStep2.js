@@ -275,6 +275,13 @@ function SettingsSummary({ settings, overrides, onOverride }) {
           </span>
         </div>
 
+        <div className="summary-row">
+          <span className="summary-row-label">Mode</span>
+          <span className="summary-row-value">
+            {settings.mode === 'ladder' ? 'Ladder' : 'Round Robin'}
+          </span>
+        </div>
+
         <div className="summary-row summary-row-edit">
           <span className="summary-row-label">Rounds</span>
           <div className="summary-inline-edit">
@@ -306,12 +313,14 @@ function SettingsSummary({ settings, overrides, onOverride }) {
           </div>
         </div>
 
-        <div className="summary-row">
-          <span className="summary-row-label">Challenge</span>
-          <span className="summary-row-value">
-            ±{settings.challengeSpots} spots
-          </span>
-        </div>
+        {settings.mode === 'ladder' && (
+          <div className="summary-row">
+            <span className="summary-row-label">Challenge</span>
+            <span className="summary-row-value">
+              ±{settings.challengeSpots} spots
+            </span>
+          </div>
+        )}
 
         <div className="summary-row">
           <span className="summary-row-label">Advance</span>

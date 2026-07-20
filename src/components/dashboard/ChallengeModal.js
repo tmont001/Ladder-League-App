@@ -1,6 +1,7 @@
 import Portal from '../shared/Portal';
 import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
+import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 
 function getParticipantName(p, isDoubles) {
   return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
@@ -14,9 +15,66 @@ function ChallengeModal({ onClose }) {
     standings,
     addChallenge,
   } = useLeague();
+  const { currentPlayer, isOrgIdentity } = usePlayerIdentity();
   const challengeSpots = settings.challengeSpots || 2;
 
-  const [challengerId, setChallengerId] = useState('');
+  // Doubles challenges require a design decision (which player issues/receives,
+  // how challenger_team_id maps to a challenge row). Until then, block doubles.
+  if (isDoubles) {
+    return (
+      <Portal>
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">Issue a Challenge</div>
+              <button className="modal-close" onClick={onClose}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="challenge-info">
+                Doubles challenges are coming soon. Stay tuned for updates.
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-back" onClick={onClose}>Close</button>
+            </div>
+          </div>
+        </div>
+      </Portal>
+    );
+  }
+
+  // For players: they are always the challenger; only the challenged is selected.
+  // For organizers: both dropdowns are shown (existing UX preserved).
+  const playerAsChallenger = !isOrgIdentity && currentPlayer;
+  const initialChallengerId = playerAsChallenger ? currentPlayer.id : '';
+
+  return (
+    <ChallengeForm
+      participants={participants}
+      standings={standings}
+      challengeSpots={challengeSpots}
+      isDoubles={isDoubles}
+      isOrgIdentity={isOrgIdentity}
+      currentPlayer={currentPlayer}
+      initialChallengerId={initialChallengerId}
+      addChallenge={addChallenge}
+      onClose={onClose}
+    />
+  );
+}
+
+function ChallengeForm({
+  participants,
+  standings,
+  challengeSpots,
+  isDoubles,
+  isOrgIdentity,
+  currentPlayer,
+  initialChallengerId,
+  addChallenge,
+  onClose,
+}) {
+  const [challengerId, setChallengerId] = useState(initialChallengerId);
   const [challengedId, setChallengedId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -42,9 +100,11 @@ function ChallengeModal({ onClose }) {
     }
     const challenger = participants.find((p) => p.id === challengerId);
     const challenged = participants.find((p) => p.id === challengedId);
+    const challengerToken = isOrgIdentity ? null : (currentPlayer?.sessionToken || null);
     setSubmitting(true);
+    setError('');
     try {
-      await addChallenge(challenger, challenged);
+      await addChallenge(challenger, challenged, challengerToken);
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to create challenge.');
@@ -59,9 +119,7 @@ function ChallengeModal({ onClose }) {
         <div className="modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <div className="modal-title">Issue a Challenge</div>
-            <button className="modal-close" onClick={onClose}>
-              ✕
-            </button>
+            <button className="modal-close" onClick={onClose}>✕</button>
           </div>
 
           <div className="modal-body">
@@ -71,24 +129,36 @@ function ChallengeModal({ onClose }) {
               {challengeSpots !== 1 ? 's' : ''} above them.
             </div>
 
-            <div className="field-group">
-              <label>Challenger</label>
-              <select
-                value={challengerId}
-                onChange={(e) => {
-                  setChallengerId(e.target.value);
-                  setChallengedId('');
-                  setError('');
-                }}
-              >
-                <option value="">Select challenger…</option>
-                {participants.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    #{rankMap[p.id] ?? '—'} {getParticipantName(p, isDoubles)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isOrgIdentity && (
+              <div className="field-group">
+                <label>Challenger</label>
+                <select
+                  value={challengerId}
+                  onChange={(e) => {
+                    setChallengerId(e.target.value);
+                    setChallengedId('');
+                    setError('');
+                  }}
+                >
+                  <option value="">Select challenger…</option>
+                  {participants.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      #{rankMap[p.id] ?? '—'} {getParticipantName(p, isDoubles)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {!isOrgIdentity && (
+              <div className="field-group">
+                <label>Challenger</label>
+                <div className="field-value">
+                  #{rankMap[challengerId] ?? '—'}{' '}
+                  {currentPlayer?.name || ''}
+                </div>
+              </div>
+            )}
 
             <div className="field-group">
               <label>Challenging</label>

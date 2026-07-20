@@ -9,6 +9,7 @@ import LeagueSetupStep2 from './components/LeagueSetupStep2';
 import LaunchCodesScreen from './components/LaunchCodesScreen';
 import Dashboard from './components/dashboard/Dashboard';
 import OrganizerSignIn from './components/auth/OrganizerSignIn';
+import MyLeagues from './components/MyLeagues';
 import {
   createLeague,
   createPlayers,
@@ -26,10 +27,13 @@ import {
   isOrganizer,
   clearActiveLeague,
   clearOrganizer,
+  setLastOrgLeagueId,
+  clearLastOrgLeagueId,
 } from './lib/session';
 
 // Steps:
 //   'home'        → Home screen (create or join)
+//   'my-leagues'  → Organizer league picker (after Magic Link sign-in)
 //   'join'        → Player code entry
 //   'setup1'      → League settings
 //   'setup2'      → Add players
@@ -90,12 +94,29 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    const consumePending = (session) => {
+    // fromInitialSession=true: page reload. The restoration effect may already
+    // be fetching a league — don't route to My Leagues over it.
+    // fromInitialSession=false: fresh Magic Link sign-in — always route to
+    // My Leagues unless a specific action was queued.
+    const consumePending = (session, fromInitialSession) => {
       if (!session) return;
       const action = localStorage.getItem('ll_pending_action');
       if (action === 'create-league') {
         localStorage.removeItem('ll_pending_action');
         setScreen('setup1');
+        return;
+      }
+      if (fromInitialSession) {
+        // A restoration is in progress if we're on /dashboard with a stored league.
+        const storedId = getActiveLeagueId();
+        const isRestoring =
+          window.location.pathname === '/dashboard' &&
+          !!storedId &&
+          !storedId.startsWith('local-');
+        if (!isRestoring) setScreen('my-leagues');
+      } else {
+        // Fresh sign-in: always go to My Leagues.
+        setScreen('my-leagues');
       }
     };
 
@@ -104,13 +125,13 @@ function AppContent() {
         if (event === 'INITIAL_SESSION') {
           setOrganizerSession(session ?? null);
           setAuthLoading(false);
-          consumePending(session);
+          consumePending(session, true);
           return;
         }
         if (event === 'SIGNED_IN') {
           setOrganizerSession(session);
           setAuthLoading(false);
-          consumePending(session);
+          consumePending(session, false);
           return;
         }
         if (event === 'SIGNED_OUT') {
@@ -247,11 +268,37 @@ function AppContent() {
     const leagueId = effectiveSettings?.id;
     if (leagueId) clearOrganizer(leagueId);
     clearActiveLeague();
+    clearLastOrgLeagueId();
     setOrganizerSession(null);
     setEffectiveSettings(null);
     setLeagueSettings(null);
     setLeagueData(null);
     setScreen('home');
+  };
+
+  const handleOpenLeague = async (leagueId) => {
+    try {
+      const settings = await fetchLeague(leagueId);
+      setActiveLeagueId(leagueId);
+      setOrganizer(leagueId);
+      setLastOrgLeagueId(leagueId);
+      setEffectiveSettings(settings);
+      setLeagueData(null);
+      setScreen('dashboard');
+      window.history.pushState({}, '', '/dashboard');
+    } catch {
+      // Stay on My Leagues; the card remains visible for retry.
+    }
+  };
+
+  const handleBackToMyLeagues = () => {
+    const leagueId = effectiveSettings?.id;
+    if (leagueId) clearOrganizer(leagueId);
+    clearActiveLeague();
+    setEffectiveSettings(null);
+    setLeagueData(null);
+    setScreen('my-leagues');
+    window.history.pushState({}, '', '/');
   };
 
   // ── Join flow ────────────────────────────────────────────
@@ -307,6 +354,14 @@ function AppContent() {
             <HomeScreen
               onCreateLeague={handleCreateLeagueClick}
               onJoinLeague={() => setScreen('join')}
+            />
+          )}
+
+          {screen === 'my-leagues' && organizerSession && (
+            <MyLeagues
+              onOpenLeague={handleOpenLeague}
+              onCreateLeague={() => setScreen('setup1')}
+              onSignOut={handleOrganizerSignOut}
             />
           )}
 
@@ -371,6 +426,9 @@ function AppContent() {
                 leagueData={leagueData}
                 onSettingsSave={(updated) =>
                   setEffectiveSettings((prev) => ({ ...prev, ...updated }))
+                }
+                onBackToMyLeagues={
+                  organizerSession ? handleBackToMyLeagues : undefined
                 }
               />
             </PlayerIdentityProvider>

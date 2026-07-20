@@ -18,9 +18,9 @@ import {
   openDispute,
   skipMatch,
   resolveDispute as resolveDisputeViaRpc,
-  createMatches,
-  createChallenge,
-  acceptChallenge,
+  createChallengeSecure,
+  createChallengeForOrganizer,
+  respondToChallengeSecure,
   fetchChallenges,
   fetchNotifications,
   markNotificationsRead,
@@ -304,31 +304,26 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
     [isLive, leagueId],
   );
 
+  // challengerToken: the player's sessionToken (null for organizer path).
+  // Both paths create a pending challenge; the challenged player must accept
+  // before a match is created.
+  // Doubles: not supported; RPCs raise doubles_challenges_not_supported.
   const addChallenge = useCallback(
-    async (challengerParticipant, challengedParticipant) => {
-      const noResponseDays = liveSettings?.challengeRules?.noResponseDays ?? 5;
+    async (challengerParticipant, challengedParticipant, challengerToken) => {
       if (isLive) {
-        const challenge = await createChallenge(
-          leagueId,
-          challengerParticipant,
-          challengedParticipant,
-          noResponseDays,
-        );
-        const matchRows = [
-          {
-            round: currentRoundNumber,
-            round_number: currentRoundNumber,
-            type: 'challenge',
-            isBye: false,
-            is_bye: false,
-            p1_player_id: challengerParticipant.id,
-            p2_player_id: challengedParticipant.id,
-            status: 'pending',
-            result: null,
-          },
-        ];
-        const [matchRow] = await createMatches(leagueId, matchRows);
-        await acceptChallenge(challenge.id, matchRow.id);
+        if (challengerToken) {
+          await createChallengeSecure(
+            challengerToken,
+            challengedParticipant.id,
+            leagueId,
+          );
+        } else {
+          await createChallengeForOrganizer(
+            leagueId,
+            challengerParticipant.id,
+            challengedParticipant.id,
+          );
+        }
       } else {
         const m = {
           id: generateId(),
@@ -347,53 +342,33 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         setRawMatches((prev) => [...prev, m]);
       }
     },
-    [isLive, leagueId, currentRoundNumber, liveSettings],
-  );
-
-  // Add a scheduled match from messenger event proposals
-  const addScheduledMatch = useCallback(
-    async (p1Participant, p2Participant, eventDate) => {
-      const m = {
-        id: generateId(),
-        round: currentRoundNumber,
-        round_number: currentRoundNumber,
-        type: 'scheduled',
-        is_bye: false,
-        isBye: false,
-        p1: p1Participant,
-        p2: p2Participant,
-        p1_player_id: p1Participant?.id || null,
-        p2_player_id: p2Participant?.id || null,
-        status: 'pending',
-        result: null,
-        scheduledDate: eventDate || null,
-      };
-      if (isLive) {
-        try {
-          await createMatches(leagueId, [{ ...m }]);
-        } catch {
-          setRawMatches((prev) => [...prev, m]);
-        }
-      } else {
-        setRawMatches((prev) => [...prev, m]);
-      }
-    },
     [isLive, leagueId, currentRoundNumber],
   );
 
+  // Respond to an incoming challenge as the challenged player.
+  // The RPC validates ownership and expiry; realtime subscriptions update state.
+  const respondToChallenge = useCallback(
+    async (token, challengeId, accept) => {
+      if (!isLive) return null;
+      return await respondToChallengeSecure(token, challengeId, accept);
+    },
+    [isLive],
+  );
+
+  // token: the player's sessionToken. Organizer has no token and no notifications.
   const loadNotifications = useCallback(
-    async (playerId) => {
-      if (!isLive || !playerId) return;
-      const data = await fetchNotifications(playerId);
+    async (token) => {
+      if (!isLive || !token) return;
+      const data = await fetchNotifications(token);
       setNotifications(data);
     },
     [isLive],
   );
 
   const readAllNotifications = useCallback(
-    async (playerId) => {
-      if (!isLive || !playerId) return;
-      await markNotificationsRead(playerId);
+    async (token) => {
+      if (!isLive || !token) return;
+      await markNotificationsRead(token, null);
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     },
     [isLive],
@@ -420,9 +395,9 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         resolveMatch,
         saveSettings,
         addChallenge,
+        respondToChallenge,
         loadNotifications,
         readAllNotifications,
-        addScheduledMatch,
       }}
     >
       {children}

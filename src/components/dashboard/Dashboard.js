@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LeagueProvider, useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 import ThemeToggle from '../shared/ThemeToggle';
@@ -84,8 +84,8 @@ function NotificationBell() {
   const [open, setOpen] = useState(false);
   const handleOpen = () => {
     setOpen((v) => !v);
-    if (!open && unreadCount > 0 && currentPlayer)
-      readAllNotifications(currentPlayer.id);
+    if (!open && unreadCount > 0 && currentPlayer?.sessionToken)
+      readAllNotifications(currentPlayer.sessionToken);
   };
   return (
     <div className="notif-bell-wrap">
@@ -213,7 +213,7 @@ function PlayerChip() {
   );
 }
 
-function DashboardContent({ onSettingsSave }) {
+function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
   const { settings, rounds, currentRoundNumber, loadNotifications, saveSettings } =
     useLeague();
   const { currentPlayer, isAdmin, isOrgIdentity } = usePlayerIdentity();
@@ -238,11 +238,27 @@ function DashboardContent({ onSettingsSave }) {
     }
   };
 
-  // Organizer identity uses the sentinel '__organizer__', not a real UUID.
-  // Skipping the load avoids a 400 from the UUID-typed player_id column.
+  // Notification refresh: on mount, on window focus, every 45 s.
+  // Organizer has no session token — skip entirely.
+  // Guard prevents overlapping fetches.
+  const notifInflight = useRef(false);
+  const refreshNotifs = useCallback(async () => {
+    const token = currentPlayer?.sessionToken;
+    if (!token || isOrgIdentity || notifInflight.current) return;
+    notifInflight.current = true;
+    try { await loadNotifications(token); }
+    finally { notifInflight.current = false; }
+  }, [currentPlayer?.sessionToken, isOrgIdentity, loadNotifications]);
+
   useEffect(() => {
-    if (!isOrgIdentity && currentPlayer?.id) loadNotifications(currentPlayer.id);
-  }, [isOrgIdentity, currentPlayer?.id, loadNotifications]);
+    refreshNotifs();
+    const interval = setInterval(refreshNotifs, 45000);
+    window.addEventListener('focus', refreshNotifs);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refreshNotifs);
+    };
+  }, [refreshNotifs]);
 
   const sport = settings?.sport ?? '';
   const singlesOrDoubles = settings?.singlesOrDoubles ?? '';
@@ -269,6 +285,26 @@ function DashboardContent({ onSettingsSave }) {
           </div>
         </div>
         <div className="dashboard-topbar-right">
+          {isOrgIdentity && onBackToMyLeagues && (
+            <button
+              className="btn-sm"
+              onClick={onBackToMyLeagues}
+              title="Back to My Leagues"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              My Leagues
+            </button>
+          )}
           {isAdmin && (
             <>
               <button className="btn-sm" onClick={() => setShowPlayers(true)}>
@@ -372,7 +408,7 @@ function DashboardContent({ onSettingsSave }) {
   );
 }
 
-function DashboardInner({ onSettingsSave }) {
+function DashboardInner({ onSettingsSave, onBackToMyLeagues }) {
   const { currentPlayer, loading } = usePlayerIdentity();
   const { settings, loadingDb } = useLeague();
   // Block DashboardContent until both the player identity AND the league
@@ -389,14 +425,22 @@ function DashboardInner({ onSettingsSave }) {
     return (
       <PlayerPicker leagueName={settings?.leagueName} sport={settings?.sport} />
     );
-  return <DashboardContent onSettingsSave={onSettingsSave} />;
+  return (
+    <DashboardContent
+      onSettingsSave={onSettingsSave}
+      onBackToMyLeagues={onBackToMyLeagues}
+    />
+  );
 }
 
-function Dashboard({ settings, leagueData, onSettingsSave }) {
+function Dashboard({ settings, leagueData, onSettingsSave, onBackToMyLeagues }) {
   return (
     <LeagueProvider settings={settings} initialLeagueData={leagueData}>
       <ErrorBoundary>
-        <DashboardInner onSettingsSave={onSettingsSave} />
+        <DashboardInner
+          onSettingsSave={onSettingsSave}
+          onBackToMyLeagues={onBackToMyLeagues}
+        />
       </ErrorBoundary>
     </LeagueProvider>
   );

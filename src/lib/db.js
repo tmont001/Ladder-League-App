@@ -401,6 +401,40 @@ function rpcErrorMessage(err) {
     return 'This match cannot be resolved right now.';
   if (msg === 'invalid_match_state')
     return 'This match is missing submission information and cannot be updated.';
+  if (msg === 'doubles_challenges_not_supported')
+    return 'Doubles challenges are not yet supported.';
+  if (msg === 'challenges_require_ladder_mode')
+    return 'Challenges are available only in ladder mode.';
+  if (msg === 'self_challenge')
+    return 'You cannot challenge yourself.';
+  if (msg === 'not_same_league')
+    return 'Both players must be in the same league.';
+  if (msg === 'challenged_player_not_found' || msg === 'challenger_player_not_found')
+    return 'Player not found in this league.';
+  if (msg === 'challenged_player_inactive')
+    return 'The player you challenged is not active.';
+  if (msg === 'challenge_target_below_rank')
+    return 'You can only challenge players ranked above you.';
+  if (msg === 'challenge_out_of_range')
+    return 'That player is too far above you in the rankings.';
+  if (msg === 'ranking_not_found')
+    return 'Rankings not found. The league may not have started yet.';
+  if (msg === 'max_active_challenges_reached')
+    return 'You have reached the maximum number of active challenges.';
+  if (msg === 'duplicate_challenge')
+    return 'There is already an active challenge between you and this player.';
+  if (msg === 'challenge_cooldown_active')
+    return 'You must wait before issuing another challenge.';
+  if (msg === 'rematch_lock_active')
+    return 'You must wait before challenging this player again.';
+  if (msg === 'challenge_not_found')
+    return 'Challenge not found.';
+  if (msg === 'not_challenged_player')
+    return 'Only the challenged player can respond to this challenge.';
+  if (msg === 'challenge_not_pending')
+    return 'This challenge is no longer pending.';
+  if (msg === 'challenge_expired')
+    return 'This challenge has expired.';
   return 'Something went wrong. Please try again.';
 }
 
@@ -465,48 +499,53 @@ export async function skipMatch(matchId) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// LEAGUES — ORGANIZER WORKSPACE
+// ══════════════════════════════════════════════════════════════
+
+export async function listMyLeagues() {
+  const { data, error } = await supabase.rpc('list_my_leagues');
+  if (error) throw error;
+  return data || [];
+}
+
+// ══════════════════════════════════════════════════════════════
 // CHALLENGES
 // ══════════════════════════════════════════════════════════════
 
-export async function createChallenge(
-  leagueId,
-  challengerPlayer,
-  challengedPlayer,
-  noResponseDays = 5,
-) {
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + noResponseDays);
-
-  const { data, error } = await supabase
-    .from('challenges')
-    .insert({
-      league_id: leagueId,
-      challenger_player_id: challengerPlayer.id,
-      challenged_player_id: challengedPlayer.id,
-      status: 'pending',
-      expires_at: expiresAt.toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
+// Player-authenticated challenge creation (singles only).
+// Token identifies the challenger; challenged is specified by UUID.
+export async function createChallengeSecure(token, challengedId, leagueId) {
+  const { data, error } = await supabase.rpc('create_challenge_secure', {
+    p_token:         token,
+    p_challenged_id: challengedId,
+    p_league_id:     leagueId,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
   return data;
 }
 
-export async function acceptChallenge(challengeId, matchId) {
-  const { error } = await supabase
-    .from('challenges')
-    .update({ status: 'accepted', match_id: matchId })
-    .eq('id', challengeId);
-  if (error) throw error;
+// Organizer-authenticated challenge creation.
+// Immediately creates match + marks challenge accepted (existing UX preserved).
+export async function createChallengeForOrganizer(leagueId, challengerId, challengedId) {
+  const { data, error } = await supabase.rpc('create_challenge_for_organizer', {
+    p_league_id:     leagueId,
+    p_challenger_id: challengerId,
+    p_challenged_id: challengedId,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
+  return data;
 }
 
-export async function declineChallenge(challengeId, reason = '') {
-  const { error } = await supabase
-    .from('challenges')
-    .update({ status: 'declined', decline_reason: reason })
-    .eq('id', challengeId);
-  if (error) throw error;
+// Player-authenticated challenge response (accept or decline).
+// Returns the new match UUID on accept, null on decline.
+export async function respondToChallengeSecure(token, challengeId, accept) {
+  const { data, error } = await supabase.rpc('respond_to_challenge_secure', {
+    p_token:        token,
+    p_challenge_id: challengeId,
+    p_accept:       accept,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
+  return data;
 }
 
 export async function fetchChallenges(leagueId) {
@@ -548,47 +587,30 @@ export async function fetchRankings(leagueId) {
 
 // ══════════════════════════════════════════════════════════════
 // NOTIFICATIONS
+// Notifications are generated server-side by secure RPCs.
+// The browser never INSERTs notifications directly; all writes
+// go through create_notification_internal (no browser EXECUTE grant).
 // ══════════════════════════════════════════════════════════════
 
-export async function createNotification(
-  playerId,
-  leagueId,
-  type,
-  message,
-  extras = {},
-) {
-  const { error } = await supabase.from('notifications').insert({
-    player_id: playerId,
-    league_id: leagueId,
-    type,
-    message,
-    related_match_id: extras.matchId || null,
-    related_challenge_id: extras.challengeId || null,
+// Token-authenticated notification fetch.
+// Returns [] silently on error — a missing notification panel is not
+// worth surfacing as a user-visible error.
+export async function fetchNotifications(token) {
+  if (!token) return [];
+  const { data, error } = await supabase.rpc('fetch_my_notifications', {
+    p_token: token,
   });
-  if (error) console.warn('[notifications] insert failed:', error.message);
-}
-
-export async function fetchNotifications(playerId) {
-  // '__organizer__' is a sentinel, not a UUID. Guard here so a misrouted
-  // call never reaches the UUID-typed player_id column.
-  if (!playerId || playerId === '__organizer__') return [];
-
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('player_id', playerId)
-    .order('created_at', { ascending: false })
-    .limit(30);
-
   if (error) return [];
-  return data;
+  return data || [];
 }
 
-export async function markNotificationsRead(playerId) {
-  const { error } = await supabase
-    .from('notifications')
-    .update({ read: true })
-    .eq('player_id', playerId)
-    .eq('read', false);
+// Token-authenticated mark-read.
+// Pass null for notificationIds to mark all as read.
+export async function markNotificationsRead(token, notificationIds = null) {
+  if (!token) return;
+  const { error } = await supabase.rpc('mark_my_notifications_read', {
+    p_token:            token,
+    p_notification_ids: notificationIds,
+  });
   if (error) console.warn('[notifications] mark read failed:', error.message);
 }

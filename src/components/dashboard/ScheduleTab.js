@@ -20,9 +20,227 @@ function StatusBadge({ status, type }) {
     confirmed: { label: 'Confirmed', cls: 'badge-confirmed' },
     disputed: { label: 'Disputed', cls: 'badge-disputed' },
     skipped: { label: 'Skipped', cls: 'badge-skipped' },
+    declined: { label: 'Declined', cls: 'badge-skipped' },
+    expired: { label: 'Expired', cls: 'badge-skipped' },
+    accepted: { label: 'Accepted', cls: 'badge-confirmed' },
   };
   const { label, cls } = map[status] || map.pending;
   return <span className={`status-badge ${cls}`}>{label}</span>;
+}
+
+function daysUntil(iso) {
+  if (!iso) return 0;
+  return Math.max(0, Math.ceil((new Date(iso) - new Date()) / 86400000));
+}
+
+function IncomingChallengeCard({ challenge, playerMap, onRespond }) {
+  const { currentPlayer } = usePlayerIdentity();
+  const [respondingWith, setRespondingWith] = useState(null);
+  const [error, setError] = useState(null);
+
+  const isClientExpired =
+    challenge.expires_at && new Date(challenge.expires_at) < new Date();
+  const challengerName =
+    playerMap[challenge.challenger_player_id]?.name || 'Unknown';
+
+  const handleRespond = async (accept) => {
+    if (respondingWith !== null) return;
+    setRespondingWith(accept ? 'accept' : 'decline');
+    setError(null);
+    try {
+      await onRespond(currentPlayer.sessionToken, challenge.id, accept);
+    } catch (err) {
+      setError(err?.message || 'Failed to respond. Please try again.');
+      setRespondingWith(null);
+    }
+  };
+
+  return (
+    <div className="match-card">
+      <div className="match-card-left">
+        <div className="match-players">
+          <span className="match-player-name">{challengerName}</span>
+          <span className="match-vs-text">challenged you</span>
+        </div>
+        {isClientExpired ? (
+          <div className="match-meta">This challenge has expired</div>
+        ) : challenge.expires_at ? (
+          <div className="match-meta">
+            {daysUntil(challenge.expires_at)} day
+            {daysUntil(challenge.expires_at) !== 1 ? 's' : ''} to respond
+          </div>
+        ) : null}
+        {error && (
+          <div
+            className="picker-error"
+            role="alert"
+            style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', marginTop: '0.25rem' }}
+          >
+            {error}
+          </div>
+        )}
+      </div>
+      <div className="match-card-right">
+        {isClientExpired ? (
+          <StatusBadge status="expired" />
+        ) : (
+          <>
+            <StatusBadge status="pending" />
+            <div className="match-actions">
+              <button
+                className="btn-score-entry"
+                onClick={() => handleRespond(true)}
+                disabled={respondingWith !== null}
+              >
+                {respondingWith === 'accept' ? '…' : 'Accept'}
+              </button>
+              <button
+                className="btn-resolve"
+                onClick={() => handleRespond(false)}
+                disabled={respondingWith !== null}
+              >
+                {respondingWith === 'decline' ? '…' : 'Decline'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OutgoingChallengeCard({ challenge, playerMap }) {
+  const challengedName =
+    playerMap[challenge.challenged_player_id]?.name || 'Unknown';
+  const isClientExpired =
+    challenge.status === 'pending' &&
+    challenge.expires_at &&
+    new Date(challenge.expires_at) < new Date();
+  const displayStatus = isClientExpired ? 'expired' : challenge.status;
+
+  return (
+    <div className={`match-card ${displayStatus === 'declined' || displayStatus === 'expired' ? 'match-card-done' : ''}`}>
+      <div className="match-card-left">
+        <div className="match-players">
+          <span className="match-player-name">vs {challengedName}</span>
+        </div>
+        {displayStatus === 'pending' && challenge.expires_at && (
+          <div className="match-meta">
+            Awaiting response · {daysUntil(challenge.expires_at)} day
+            {daysUntil(challenge.expires_at) !== 1 ? 's' : ''} remaining
+          </div>
+        )}
+        {isClientExpired && (
+          <div className="match-meta">The deadline to respond has passed</div>
+        )}
+        {displayStatus === 'declined' && (
+          <div className="match-meta">Challenge was declined</div>
+        )}
+      </div>
+      <div className="match-card-right">
+        <StatusBadge status={displayStatus} />
+      </div>
+    </div>
+  );
+}
+
+function OrgChallengeCard({ challenge, playerMap }) {
+  const challengerName =
+    playerMap[challenge.challenger_player_id]?.name || 'Unknown';
+  const challengedName =
+    playerMap[challenge.challenged_player_id]?.name || 'Unknown';
+  const isClientExpired =
+    challenge.status === 'pending' &&
+    challenge.expires_at &&
+    new Date(challenge.expires_at) < new Date();
+  const displayStatus = isClientExpired ? 'expired' : challenge.status;
+
+  return (
+    <div className="match-card">
+      <div className="match-card-left">
+        <div className="match-players">
+          <span className="match-player-name">{challengerName}</span>
+          <span className="match-vs-text">→</span>
+          <span className="match-player-name">{challengedName}</span>
+        </div>
+        {isClientExpired && (
+          <div className="match-meta">Challenge expired</div>
+        )}
+      </div>
+      <div className="match-card-right">
+        <StatusBadge status={displayStatus} />
+      </div>
+    </div>
+  );
+}
+
+function ChallengesSection({ respondToChallenge }) {
+  const { challenges, participants, isDoubles } = useLeague();
+  const { currentPlayer, isOrgIdentity } = usePlayerIdentity();
+
+  if (isDoubles) return null;
+
+  const playerMap = {};
+  (participants || []).forEach((p) => { playerMap[p.id] = p; });
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  let incoming = [];
+  let outgoing = [];
+  let orgPending = [];
+
+  if (isOrgIdentity) {
+    orgPending = challenges.filter((c) => c.status === 'pending');
+  } else if (currentPlayer) {
+    incoming = challenges.filter(
+      (c) =>
+        c.challenged_player_id === currentPlayer.id && c.status === 'pending',
+    );
+    outgoing = challenges.filter(
+      (c) =>
+        c.challenger_player_id === currentPlayer.id &&
+        (c.status === 'pending' ||
+          (c.status === 'declined' &&
+            new Date(c.created_at) > sevenDaysAgo)),
+    );
+  }
+
+  if (incoming.length === 0 && outgoing.length === 0 && orgPending.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="round-section">
+      <div className="round-header">
+        <div className="round-title">Challenges</div>
+      </div>
+      {incoming.length > 0 && (
+        <div className="round-matches">
+          {incoming.map((c) => (
+            <IncomingChallengeCard
+              key={c.id}
+              challenge={c}
+              playerMap={playerMap}
+              onRespond={respondToChallenge}
+            />
+          ))}
+        </div>
+      )}
+      {outgoing.length > 0 && (
+        <div className="round-matches">
+          {outgoing.map((c) => (
+            <OutgoingChallengeCard key={c.id} challenge={c} playerMap={playerMap} />
+          ))}
+        </div>
+      )}
+      {orgPending.length > 0 && (
+        <div className="round-matches">
+          {orgPending.map((c) => (
+            <OrgChallengeCard key={c.id} challenge={c} playerMap={playerMap} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AutoConfirmCountdown({ isoString }) {
@@ -436,9 +654,10 @@ function DisputeModal({ match, onClose }) {
 }
 
 function ScheduleTab() {
-  const { rounds, confirmResult, resolveDispute, resolveMatch, settings } = useLeague();
+  const { rounds, confirmResult, resolveDispute, resolveMatch, settings, respondToChallenge } = useLeague();
   const { currentPlayer, isOrgIdentity } = usePlayerIdentity();
-  const challengesEnabled = settings?.challengesEnabled !== false;
+  const challengesEnabled =
+    settings?.mode === 'ladder' && settings?.challengesEnabled !== false;
   const [scoreMatch, setScoreMatch] = useState(null);
   const [disputeMatch, setDisputeMatch] = useState(null);
   const [showChallenge, setShowChallenge] = useState(false);
@@ -466,6 +685,9 @@ function ScheduleTab() {
           </button>
         )}
       </div>
+      {challengesEnabled && (
+        <ChallengesSection respondToChallenge={respondToChallenge} />
+      )}
       {rounds.map((round) => (
         <RoundSection
           key={round.roundNumber}

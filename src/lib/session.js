@@ -58,3 +58,19 @@ export function isOrganizer(leagueId) {
 export function clearOrganizer(leagueId) {
   localStorage.removeItem(`${ORG_PREFIX}${leagueId}`);
 }
+
+// Last organizer league — remembers which league the organizer opened most
+// recently so My Leagues can highlight or auto-open it on next sign-in.
+const LAST_ORG_LEAGUE_KEY = 'll_last_org_league';
+
+export function getLastOrgLeagueId() {
+  return localStorage.getItem(LAST_ORG_LEAGUE_KEY) || null;
+}
+
+export function setLastOrgLeagueId(leagueId) {
+  localStorage.setItem(LAST_ORG_LEAGUE_KEY, leagueId);
+}
+
+export function clearLastOrgLeagueId() {
+  localStorage.removeItem(LAST_ORG_LEAGUE_KEY);
+}

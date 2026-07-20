@@ -59,6 +59,7 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
     initialSettings || {
       leagueName: '',
       sport: 'tennis',
+      mode: 'round_robin',
       format: 'best_of_3',
       singlesOrDoubles: 'singles',
       rounds: 6,
@@ -75,6 +76,7 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
 
   const set = (key, val) => setS((prev) => ({ ...prev, [key]: val }));
   const isTennis = s.sport === 'tennis';
+  const isLadder = s.mode === 'ladder';
   const isPickleball = s.sport === 'pickleball';
   const isMultiSet = s.format === 'best_of_3' || s.format === 'best_of_5';
   const isValid = s.leagueName.trim().length > 0;
@@ -138,6 +140,30 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
             value={s.leagueName}
             onChange={(e) => set('leagueName', e.target.value)}
           />
+        </div>
+
+        {/* Competition Mode */}
+        <div className="field-group">
+          <label>Competition Mode</label>
+          <div className="segment-group">
+            <button
+              className={`segment ${s.mode === 'round_robin' ? 'active' : ''}`}
+              onClick={() => set('mode', 'round_robin')}
+            >
+              Round Robin
+            </button>
+            <button
+              className={`segment ${s.mode === 'ladder' ? 'active' : ''}`}
+              onClick={() => set('mode', 'ladder')}
+            >
+              Ladder
+            </button>
+          </div>
+          <div className="field-hint">
+            {isLadder
+              ? 'Players are ranked and may challenge eligible players above them.'
+              : 'Everyone plays a scheduled set of opponents.'}
+          </div>
         </div>
 
         {/* Format row */}
@@ -290,20 +316,22 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
           </div>
         </div>
 
-        {/* Challenge window */}
-        <div className="field-group">
-          <label>Challenge window (spots above)</label>
-          <div className="slider-row">
-            <input
-              type="range"
-              min={1}
-              max={5}
-              value={s.challengeSpots}
-              onChange={(e) => set('challengeSpots', Number(e.target.value))}
-            />
-            <div className="slider-val">{s.challengeSpots}</div>
+        {/* Challenge window — ladder mode only */}
+        {isLadder && (
+          <div className="field-group">
+            <label>Challenge window (spots above)</label>
+            <div className="slider-row">
+              <input
+                type="range"
+                min={1}
+                max={5}
+                value={s.challengeSpots}
+                onChange={(e) => set('challengeSpots', Number(e.target.value))}
+              />
+              <div className="slider-val">{s.challengeSpots}</div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Auto-advance */}
         <div className="toggle-row">
