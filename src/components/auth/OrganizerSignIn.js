@@ -8,7 +8,7 @@ import { requestMagicLink } from '../../lib/auth';
 //   sent     -> magic link email dispatched
 //   error    -> requestMagicLink() rejected
 
-function OrganizerSignIn({ onBack, linkExpired }) {
+function OrganizerSignIn({ onBack, linkExpired, sessionExpired }) {
   const [uiState, setUiState] = useState('idle');
   const [email, setEmail] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -55,7 +55,12 @@ function OrganizerSignIn({ onBack, linkExpired }) {
       </div>
 
       <div className="card-body">
-        {linkExpired && (
+        {sessionExpired && (
+          <div className="picker-error" role="alert" style={{ marginBottom: 16 }}>
+            {sessionExpired}
+          </div>
+        )}
+        {linkExpired && !sessionExpired && (
           <div className="picker-error" role="alert" style={{ marginBottom: 16 }}>
             Your sign-in link has expired or is no longer valid. Enter your
             email below to receive a new one.

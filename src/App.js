@@ -1,5 +1,5 @@
 // src/App.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { PlayerIdentityProvider } from './context/PlayerIdentityContext';
 import HomeScreen from './components/HomeScreen';
@@ -69,6 +69,14 @@ function AppContent() {
   // "Create League" button doesn't flash before auth is known.
   const [organizerSession, setOrganizerSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  // Message shown on OrganizerSignIn after an unexpected session expiry.
+  const [orgExpiredMessage, setOrgExpiredMessage] = useState(null);
+  // Set to true during an intentional signOut so the SIGNED_OUT listener
+  // knows not to treat it as an unexpected token expiry.
+  const intentionalSignOutRef = useRef(false);
+  // Mirrors effectiveSettings.id for use inside the auth listener closure,
+  // which cannot read React state directly.
+  const leagueIdForAuthRef = useRef(null);
 
   // Detect a failed Magic Link callback (expired, already used, etc.).
   // Supabase appends #error=access_denied&error_code=otp_expired to the
@@ -83,6 +91,12 @@ function AppContent() {
       searchParams.get('error_code')
     );
   });
+
+  // Keep leagueIdForAuthRef in sync so the auth listener can clear the
+  // per-league organizer flag even though it closes over an empty dep array.
+  useEffect(() => {
+    leagueIdForAuthRef.current = effectiveSettings?.id ?? null;
+  }, [effectiveSettings]);
 
   // Clean error params from the URL and route to the sign-in screen
   // so the user can request a fresh link.
@@ -130,6 +144,7 @@ function AppContent() {
         }
         if (event === 'SIGNED_IN') {
           setOrganizerSession(session);
+          setOrgExpiredMessage(null);
           setAuthLoading(false);
           consumePending(session, false);
           return;
@@ -137,6 +152,21 @@ function AppContent() {
         if (event === 'SIGNED_OUT') {
           setOrganizerSession(null);
           setAuthLoading(false);
+          if (!intentionalSignOutRef.current) {
+            // Unexpected sign-out: refresh token expired or revoked.
+            // Clear all organizer-specific local state and route to sign-in.
+            const lid = leagueIdForAuthRef.current;
+            if (lid) clearOrganizer(lid);
+            clearActiveLeague();
+            clearLastOrgLeagueId();
+            setEffectiveSettings(null);
+            setLeagueSettings(null);
+            setLeagueData(null);
+            setOrgExpiredMessage(
+              'Your organizer session expired. Please sign in again.',
+            );
+            setScreen('organizer-signin');
+          }
           return;
         }
         // TOKEN_REFRESHED, USER_UPDATED, PASSWORD_RECOVERY, or any future
@@ -264,7 +294,12 @@ function AppContent() {
   const handleOrganizerSignOut = async () => {
     // Throws on failure — PlayerChip catches and shows a generic retry
     // message, keeping the user on their current screen.
-    await signOutOrganizer();
+    intentionalSignOutRef.current = true;
+    try {
+      await signOutOrganizer();
+    } finally {
+      intentionalSignOutRef.current = false;
+    }
     const leagueId = effectiveSettings?.id;
     if (leagueId) clearOrganizer(leagueId);
     clearActiveLeague();
@@ -275,6 +310,34 @@ function AppContent() {
     setLeagueData(null);
     setScreen('home');
   };
+
+  // Called by components when an organizer RPC returns not_authenticated.
+  // Supabase's session is already gone; sign out explicitly so Supabase
+  // clears client-side tokens, mark the sign-out intentional to suppress
+  // the SIGNED_OUT handler's expiry branch, then clean up and route to
+  // the sign-in screen.
+  const handleOrgSessionExpired = useCallback(async () => {
+    intentionalSignOutRef.current = true;
+    try {
+      await signOutOrganizer();
+    } catch {
+      // Session may already be gone — ignore the error.
+    } finally {
+      intentionalSignOutRef.current = false;
+    }
+    const leagueId = effectiveSettings?.id;
+    if (leagueId) clearOrganizer(leagueId);
+    clearActiveLeague();
+    clearLastOrgLeagueId();
+    setOrganizerSession(null);
+    setEffectiveSettings(null);
+    setLeagueSettings(null);
+    setLeagueData(null);
+    setOrgExpiredMessage(
+      'Your organizer session expired. Please sign in again.',
+    );
+    setScreen('organizer-signin');
+  }, [effectiveSettings]);
 
   const handleOpenLeague = async (leagueId) => {
     try {
@@ -362,6 +425,7 @@ function AppContent() {
               onOpenLeague={handleOpenLeague}
               onCreateLeague={() => setScreen('setup1')}
               onSignOut={handleOrganizerSignOut}
+              onSessionExpired={handleOrgSessionExpired}
             />
           )}
 
@@ -370,9 +434,11 @@ function AppContent() {
               onBack={() => {
                 localStorage.removeItem('ll_pending_action');
                 setLinkExpiredOrInvalid(false);
+                setOrgExpiredMessage(null);
                 setScreen('home');
               }}
               linkExpired={linkExpiredOrInvalid}
+              sessionExpired={orgExpiredMessage}
             />
           )}
 
@@ -420,6 +486,7 @@ function AppContent() {
               isOrganizer={isOrganizerSession}
               initialPlayer={joinedPlayer}
               onOrganizerSignOut={handleOrganizerSignOut}
+              onOrgSessionExpired={handleOrgSessionExpired}
             >
               <Dashboard
                 settings={activeSettings}

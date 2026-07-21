@@ -1,6 +1,9 @@
 // src/lib/db.js
 import { supabase } from './supabase';
 
+export const ORG_SESSION_EXPIRED_MSG =
+  'Your organizer session expired. Please sign in again.';
+
 // ══════════════════════════════════════════════════════════════
 // PLAYER QUERY ROUTING
 //
@@ -394,7 +397,7 @@ function rpcErrorMessage(err) {
   if (msg === 'dispute_already_open')
     return 'A dispute is already open for this match.';
   if (msg === 'not_authenticated')
-    return 'Organizer session required.';
+    return ORG_SESSION_EXPIRED_MSG;
   if (msg === 'not_league_organizer')
     return 'You do not own this league.';
   if (msg === 'match_not_resolvable')
@@ -435,7 +438,29 @@ function rpcErrorMessage(err) {
     return 'This challenge is no longer pending.';
   if (msg === 'challenge_expired')
     return 'This challenge has expired.';
+  if (msg === 'match_already_final')
+    return 'This match has already been finalized.';
+  if (msg === 'confirmation_required')
+    return 'Please type the league name to confirm deletion.';
+  if (msg === 'name_mismatch')
+    return 'League name does not match. Please type the exact name.';
   return 'Something went wrong. Please try again.';
+}
+
+export async function recordMatchResultForOrganizer(matchId, result) {
+  const { error } = await supabase.rpc('record_match_result_for_organizer', {
+    p_match_id: matchId,
+    p_result:   result,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
+}
+
+export async function deleteLeague(leagueId, confirmationName) {
+  const { error } = await supabase.rpc('delete_league_for_organizer', {
+    p_league_id:         leagueId,
+    p_confirmation_name: confirmationName,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
 }
 
 export async function submitMatchResult(matchId, result, sessionToken) {

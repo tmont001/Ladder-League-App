@@ -14,6 +14,7 @@ import {
   fetchTeams,
   fetchLeague,
   submitMatchResult,
+  recordMatchResultForOrganizer,
   confirmMatchResult,
   openDispute,
   skipMatch,
@@ -231,6 +232,21 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
     [isLive],
   );
 
+  const recordOfficialResult = useCallback(
+    async (matchId, result) => {
+      if (isLive) {
+        await recordMatchResultForOrganizer(matchId, result);
+      } else {
+        setRawMatches((prev) =>
+          prev.map((m) =>
+            m.id === matchId ? { ...m, status: 'confirmed', result } : m,
+          ),
+        );
+      }
+    },
+    [isLive],
+  );
+
   const confirmResult = useCallback(
     async (matchId, sessionToken) => {
       if (isLive) {
@@ -389,6 +405,7 @@ export function LeagueProvider({ settings, initialLeagueData, children }) {
         currentRoundNumber,
         loadingDb,
         submitResult,
+        recordOfficialResult,
         confirmResult,
         disputeResult,
         resolveDispute,

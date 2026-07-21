@@ -2,6 +2,7 @@ import Portal from '../shared/Portal';
 import React, { useState, useMemo } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
+import { ORG_SESSION_EXPIRED_MSG } from '../../lib/db';
 
 // ─────────────────────────────────────────────────────────────
 // Score options
@@ -281,8 +282,8 @@ function SetScoreRow({
 // ─── Main Modal ───────────────────────────────────────────────
 
 function ScoreEntryModal({ match, onClose }) {
-  const { settings, isDoubles, submitResult } = useLeague();
-  const { currentPlayer } = usePlayerIdentity();
+  const { settings, isDoubles, submitResult, recordOfficialResult } = useLeague();
+  const { currentPlayer, isOrgIdentity, orgSessionExpired } = usePlayerIdentity();
 
   const sport = settings.sport;
   const format = settings.format;
@@ -415,9 +416,17 @@ function ScoreEntryModal({ match, onClose }) {
     }
     setSubmitting(true);
     try {
-      await submitResult(match.id, result, currentPlayer?.sessionToken || null);
+      if (isOrgIdentity) {
+        await recordOfficialResult(match.id, result);
+      } else {
+        await submitResult(match.id, result, currentPlayer?.sessionToken || null);
+      }
       onClose();
     } catch (err) {
+      if (isOrgIdentity && err.message === ORG_SESSION_EXPIRED_MSG && orgSessionExpired) {
+        orgSessionExpired();
+        return;
+      }
       setError(err?.message || 'Failed to submit. Please try again.');
     } finally {
       setSubmitting(false);
@@ -436,7 +445,7 @@ function ScoreEntryModal({ match, onClose }) {
         <div className="modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <div className="modal-title" id="score-modal-title">
-              Enter Score
+              {isOrgIdentity ? 'Record Official Score' : 'Enter Score'}
             </div>
             <button
               className="modal-close"
@@ -535,7 +544,9 @@ function ScoreEntryModal({ match, onClose }) {
               disabled={!result || submitting}
               aria-disabled={!result || submitting}
             >
-              {submitting ? 'Submitting…' : 'Submit Score'}
+              {submitting
+                ? (isOrgIdentity ? 'Recording…' : 'Submitting…')
+                : (isOrgIdentity ? 'Record Official Result' : 'Submit Score')}
             </button>
           </div>
         </div>

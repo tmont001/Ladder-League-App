@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { listMyLeagues } from '../lib/db';
-import { getLastOrgLeagueId, clearLastOrgLeagueId } from '../lib/session';
+import { listMyLeagues, deleteLeague, ORG_SESSION_EXPIRED_MSG } from '../lib/db';
+import { getLastOrgLeagueId, clearLastOrgLeagueId, clearActiveLeague } from '../lib/session';
 import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
 
 function sportLabel(sport) {
@@ -21,7 +21,7 @@ function participantLabel(league) {
   return `${league.player_count} player${league.player_count !== 1 ? 's' : ''}`;
 }
 
-function LeagueCard({ league, onOpen }) {
+function LeagueCard({ league, onOpen, onDelete }) {
   const SportIcon =
     league.sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
 
@@ -42,19 +42,82 @@ function LeagueCard({ league, onOpen }) {
         <span>{participantLabel(league)}</span>
         <span>{league.rounds} round{league.rounds !== 1 ? 's' : ''}</span>
       </div>
-      <button className="btn-next my-leagues-open-btn" onClick={() => onOpen(league.league_id)}>
-        Open League
-      </button>
+      <div className="my-leagues-card-actions">
+        <button className="btn-next my-leagues-open-btn" onClick={() => onOpen(league.league_id)}>
+          Open League
+        </button>
+        <button className="btn-danger-outline my-leagues-delete-btn" onClick={() => onDelete(league.league_id, league.name)}>
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
 
-function MyLeagues({ onOpenLeague, onCreateLeague, onSignOut }) {
+function DeleteConfirmDialog({ leagueName, onConfirm, onCancel }) {
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await onConfirm(confirmText);
+    } catch (err) {
+      setDeleting(false);
+      setError(err?.message || 'Deletion failed. Please try again.');
+    }
+  };
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-league-title">
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title" id="delete-league-title">Delete League</div>
+          <button className="modal-close" onClick={onCancel} aria-label="Cancel" disabled={deleting}>✕</button>
+        </div>
+        <div className="modal-body">
+          <p className="delete-confirm-warning">
+            This will permanently delete <strong>{leagueName}</strong> and all its players, matches, and history. This cannot be undone.
+          </p>
+          <div className="field-group">
+            <label htmlFor="delete-confirm-input">Type the league name to confirm</label>
+            <input
+              id="delete-confirm-input"
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={leagueName}
+              disabled={deleting}
+              autoComplete="off"
+            />
+          </div>
+          {error && <div className="modal-error" role="alert">{error}</div>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-back" onClick={onCancel} disabled={deleting}>Cancel</button>
+          <button
+            className="btn-danger"
+            onClick={handleDelete}
+            disabled={confirmText !== leagueName || deleting}
+            aria-disabled={confirmText !== leagueName || deleting}
+          >
+            {deleting ? 'Deleting…' : 'Delete League'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MyLeagues({ onOpenLeague, onCreateLeague, onSignOut, onSessionExpired }) {
   const [leagues, setLeagues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   useEffect(() => {
     listMyLeagues()
@@ -76,6 +139,27 @@ function MyLeagues({ onOpenLeague, onCreateLeague, onSignOut }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleDeleteRequest = (leagueId, leagueName) => {
+    setPendingDelete({ leagueId, leagueName });
+  };
+
+  const handleDeleteConfirm = async (confirmText) => {
+    try {
+      await deleteLeague(pendingDelete.leagueId, confirmText);
+    } catch (err) {
+      if (err.message === ORG_SESSION_EXPIRED_MSG && onSessionExpired) {
+        onSessionExpired();
+        return;
+      }
+      throw err;
+    }
+    const deletedId = pendingDelete.leagueId;
+    setPendingDelete(null);
+    setLeagues((prev) => prev.filter((l) => l.league_id !== deletedId));
+    if (getLastOrgLeagueId() === deletedId) clearLastOrgLeagueId();
+    clearActiveLeague();
+  };
+
   const handleSignOut = async () => {
     setSigningOut(true);
     setSignOutError(null);
@@ -88,6 +172,14 @@ function MyLeagues({ onOpenLeague, onCreateLeague, onSignOut }) {
   };
 
   return (
+    <>
+    {pendingDelete && (
+      <DeleteConfirmDialog
+        leagueName={pendingDelete.leagueName}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setPendingDelete(null)}
+      />
+    )}
     <div className="my-leagues-screen">
       <div className="my-leagues-topbar">
         <div className="my-leagues-title">My Leagues</div>
@@ -135,6 +227,7 @@ function MyLeagues({ onOpenLeague, onCreateLeague, onSignOut }) {
                 key={league.league_id}
                 league={league}
                 onOpen={onOpenLeague}
+                onDelete={handleDeleteRequest}
               />
             ))}
           </div>
@@ -149,6 +242,7 @@ function MyLeagues({ onOpenLeague, onCreateLeague, onSignOut }) {
         )}
       </div>
     </div>
+    </>
   );
 }
 
