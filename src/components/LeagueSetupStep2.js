@@ -849,7 +849,7 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData, launchError
           </div>
 
           {/* ── RIGHT: Settings + preview ── */}
-          <div className="setup-right">
+          <div className="setup-right setup-right-sticky">
             <SettingsSummary
               settings={settings}
               overrides={overrides}

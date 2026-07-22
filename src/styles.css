@@ -1658,7 +1658,7 @@ input[type='range']::-webkit-slider-thumb {
    ════════════════════════════════════════════════════════════ */
 .dashboard {
   width: 100%;
-  max-width: 960px;
+  max-width: 1200px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -3602,4 +3602,385 @@ html.sport-pickleball .theme-light .home-option-primary {
 .error-boundary-message {
   font-size: 1rem;
   color: var(--text-muted);
+}
+
+/* ════════════════════════════════════════════════════════════
+   DANGER BUTTONS
+   ════════════════════════════════════════════════════════════ */
+.btn-danger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0.75rem 1.5rem;
+  width: 100%;
+  background: var(--danger);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    filter var(--transition),
+    transform var(--transition);
+}
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.btn-danger:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-danger-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.45rem 0.9rem;
+  background: transparent;
+  border: 1.5px solid var(--danger-dim);
+  border-radius: var(--radius-md);
+  color: var(--danger);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+  white-space: nowrap;
+}
+.btn-danger-outline:hover {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+}
+
+/* ════════════════════════════════════════════════════════════
+   DELETE CONFIRM WARNING
+   ════════════════════════════════════════════════════════════ */
+.delete-confirm-warning {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--danger-dim);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-sm);
+}
+
+/* ════════════════════════════════════════════════════════════
+   MY LEAGUES SCREEN
+   ════════════════════════════════════════════════════════════ */
+.my-leagues-screen {
+  width: 100%;
+  max-width: 1200px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  position: relative;
+  z-index: 1;
+}
+
+.my-leagues-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 0 1rem;
+  gap: 1rem;
+}
+
+.my-leagues-title {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1;
+}
+
+.my-leagues-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.my-leagues-signout-error {
+  font-size: 0.78rem;
+  color: var(--danger);
+}
+
+.my-leagues-body {
+  flex: 1;
+  padding-bottom: 2rem;
+}
+
+.my-leagues-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.my-leagues-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition),
+    transform var(--transition);
+}
+.my-leagues-card:hover {
+  border-color: var(--border-mid);
+  box-shadow: 0 4px 20px var(--shadow);
+  transform: translateY(-2px);
+}
+
+.my-leagues-card-badge {
+  padding: 3px 10px;
+  background: var(--accent-dim);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.my-leagues-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 1rem 1rem 0.5rem;
+}
+
+.my-leagues-card-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--accent-dim);
+  border-radius: var(--radius-md);
+  color: var(--accent-text);
+  margin-top: 2px;
+}
+
+.my-leagues-card-titles {
+  min-width: 0;
+  flex: 1;
+}
+
+.my-leagues-card-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.my-leagues-card-meta {
+  font-size: 0.69rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.my-leagues-card-stats {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.25rem 1rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.my-leagues-stat-sep {
+  color: var(--border-strong);
+  font-size: 0.75em;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.my-leagues-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 1rem 1rem;
+  margin-top: auto;
+}
+
+.my-leagues-card-actions .btn-next {
+  flex: 1;
+  width: auto;
+  padding: 0.55rem 1rem;
+  font-size: 0.84rem;
+}
+
+.my-leagues-empty {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.my-leagues-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 1024px) {
+  .my-leagues-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .my-leagues-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-leagues-topbar {
+    flex-wrap: wrap;
+    padding: 1rem 0 0.75rem;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   VISUAL POLISH — PASS 1
+   ════════════════════════════════════════════════════════════ */
+
+/* Form section grouping for step-1 wizard */
+.wizard-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem;
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.wizard-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.45rem;
+}
+
+/* card-body variant when children are .wizard-section */
+.card-body-sections {
+  gap: 0.85rem;
+  padding: 1.25rem 1.5rem;
+}
+
+/* Home screen "or" divider */
+.home-sep-or {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  user-select: none;
+}
+.home-sep-or::before,
+.home-sep-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Organizer sign-in context label */
+.signin-context {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin-bottom: 0.5rem;
+}
+
+/* Sign-in "sent" success state */
+.info-box-sent {
+  padding: 1.1rem 1.25rem;
+  background: var(--success-dim);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--success);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+.info-box-sent-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+/* Step 2 right panel sticky on desktop */
+.setup-right-sticky {
+  position: sticky;
+  top: 1.5rem;
+}
+@media (max-width: 720px) {
+  .setup-right-sticky {
+    position: static;
+    top: auto;
+  }
+}
+
+/* Wider wizard card for multi-section step 1 */
+.wizard-card-step1 {
+  max-width: 720px;
+}
+
+/* My leagues header row with create action inline */
+.my-leagues-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+.my-leagues-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.my-leagues-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 500px) {
+  .my-leagues-header-row {
+    flex-direction: column;
+  }
+  .my-leagues-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
 }

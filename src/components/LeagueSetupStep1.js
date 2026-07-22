@@ -93,7 +93,7 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
   };
 
   return (
-    <div className="wizard-card">
+    <div className="wizard-card wizard-card-step1">
       <div className="card-accent" />
       <div className="card-header">
         <div className="card-header-top">
@@ -109,248 +109,256 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
         </div>
       </div>
 
-      <div className="card-body">
-        {/* Sport */}
-        <div className="field-group">
-          <label>Sport</label>
-          <div className="sport-tabs">
-            {SPORTS.map((sp) => (
-              <button
-                key={sp.id}
-                className={`sport-tab ${s.sport === sp.id ? 'active' : ''}`}
-                onClick={() => handleSportChange(sp.id)}
-              >
-                <span className="sport-tab-icon">
-                  <sp.Icon size={22} color="currentColor" />
-                </span>
-                <span className="sport-tab-text">
-                  <span className="sport-tab-label">{sp.label}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="card-body card-body-sections">
 
-        {/* League Name */}
-        <div className="field-group">
-          <label>League Name</label>
-          <input
-            type="text"
-            placeholder="e.g. My Local Tennis Club Fall League"
-            value={s.leagueName}
-            onChange={(e) => set('leagueName', e.target.value)}
-          />
-        </div>
+        {/* ── Section 1: League identity ── */}
+        <div className="wizard-section">
+          <div className="wizard-section-title">League</div>
 
-        {/* Competition Mode */}
-        <div className="field-group">
-          <label>Competition Mode</label>
-          <div className="segment-group">
-            <button
-              className={`segment ${s.mode === 'round_robin' ? 'active' : ''}`}
-              onClick={() => set('mode', 'round_robin')}
-            >
-              Round Robin
-            </button>
-            <button
-              className={`segment ${s.mode === 'ladder' ? 'active' : ''}`}
-              onClick={() => set('mode', 'ladder')}
-            >
-              Ladder
-            </button>
-          </div>
-          <div className="field-hint">
-            {isLadder
-              ? 'Players are ranked and may challenge eligible players above them.'
-              : 'Everyone plays a scheduled set of opponents.'}
-          </div>
-        </div>
-
-        {/* Format row */}
-        <div className="grid-2">
           <div className="field-group">
-            <label>Singles / Doubles</label>
-            <div className="segment-group">
-              {['singles', 'doubles'].map((v) => (
+            <label>Sport</label>
+            <div className="sport-tabs">
+              {SPORTS.map((sp) => (
                 <button
-                  key={v}
-                  className={`segment ${s.singlesOrDoubles === v ? 'active' : ''}`}
-                  onClick={() => set('singlesOrDoubles', v)}
+                  key={sp.id}
+                  className={`sport-tab ${s.sport === sp.id ? 'active' : ''}`}
+                  onClick={() => handleSportChange(sp.id)}
                 >
-                  {v[0].toUpperCase() + v.slice(1)}
+                  <span className="sport-tab-icon">
+                    <sp.Icon size={22} color="currentColor" />
+                  </span>
+                  <span className="sport-tab-text">
+                    <span className="sport-tab-label">{sp.label}</span>
+                  </span>
                 </button>
               ))}
             </div>
           </div>
+
           <div className="field-group">
-            <label>{sport.formatLabel}</label>
-            <select
-              value={s.format}
-              onChange={(e) => set('format', e.target.value)}
-            >
-              {sport.formatOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Tennis scoring */}
-        {isTennis && (
-          <>
-            <div className="grid-2">
-              <div className="field-group">
-                <label>Games per set</label>
-                <select
-                  value={s.gamesPerSet}
-                  onChange={(e) => set('gamesPerSet', Number(e.target.value))}
-                >
-                  {GAMES_PER_SET.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field-group">
-                <label>Tiebreak format</label>
-                <select
-                  value={s.tiebreakFormat}
-                  onChange={(e) => set('tiebreakFormat', e.target.value)}
-                >
-                  {TIEBREAK_OPTS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {isMultiSet && (
-              <div className="field-group">
-                <label>Deciding set format</label>
-                <div className="segment-group">
-                  {DECIDING_OPTS.map((o) => (
-                    <button
-                      key={o.value}
-                      className={`segment ${s.thirdSetFormat === o.value ? 'active' : ''}`}
-                      onClick={() => set('thirdSetFormat', o.value)}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="field-hint">
-                  ↳ Applied to set {s.format === 'best_of_3' ? '3' : '5'} only
-                </div>
-              </div>
-            )}
-
-            <div className="toggle-row">
-              <div>
-                <div className="toggle-label">No-Ad scoring</div>
-                <div className="toggle-sub">
-                  Deuce points decided by one point — speeds up play
-                </div>
-              </div>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={s.noAd}
-                  onChange={(e) => set('noAd', e.target.checked)}
-                />
-                <span className="toggle-track" />
-              </label>
-            </div>
-          </>
-        )}
-
-        {/* Pickleball scoring */}
-        {isPickleball && (
-          <div className="field-group">
-            <label>Points to win a game</label>
-            <div className="segment-group">
-              {PB_POINTS.map((o) => (
-                <button
-                  key={o.value}
-                  className={`segment ${s.pickleballPoints === o.value ? 'active' : ''}`}
-                  onClick={() => set('pickleballPoints', o.value)}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Time & rounds row */}
-        <div className="grid-2">
-          <div className="field-group">
-            <label>Match time limit</label>
-            <select
-              value={s.scoringTime}
-              onChange={(e) => set('scoringTime', e.target.value)}
-            >
-              {TIME_OPTS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field-group">
-            <label>Number of rounds</label>
-            <div className="slider-row">
-              <input
-                type="range"
-                min={2}
-                max={16}
-                value={s.rounds}
-                onChange={(e) => set('rounds', Number(e.target.value))}
-              />
-              <div className="slider-val">{s.rounds}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Challenge window — ladder mode only */}
-        {isLadder && (
-          <div className="field-group">
-            <label>Challenge window (spots above)</label>
-            <div className="slider-row">
-              <input
-                type="range"
-                min={1}
-                max={5}
-                value={s.challengeSpots}
-                onChange={(e) => set('challengeSpots', Number(e.target.value))}
-              />
-              <div className="slider-val">{s.challengeSpots}</div>
-            </div>
-          </div>
-        )}
-
-        {/* Auto-advance */}
-        <div className="toggle-row">
-          <div>
-            <div className="toggle-label">Auto-advance rounds</div>
-            <div className="toggle-sub">
-              Automatically generate the next round when all matches are
-              complete
-            </div>
-          </div>
-          <label className="toggle">
+            <label>League Name</label>
             <input
-              type="checkbox"
-              checked={s.autoAdvance}
-              onChange={(e) => set('autoAdvance', e.target.checked)}
+              type="text"
+              placeholder="e.g. My Local Tennis Club Fall League"
+              value={s.leagueName}
+              onChange={(e) => set('leagueName', e.target.value)}
             />
-            <span className="toggle-track" />
-          </label>
+          </div>
+
+          <div className="field-group">
+            <label>Competition Mode</label>
+            <div className="segment-group">
+              <button
+                className={`segment ${s.mode === 'round_robin' ? 'active' : ''}`}
+                onClick={() => set('mode', 'round_robin')}
+              >
+                Round Robin
+              </button>
+              <button
+                className={`segment ${s.mode === 'ladder' ? 'active' : ''}`}
+                onClick={() => set('mode', 'ladder')}
+              >
+                Ladder
+              </button>
+            </div>
+            <div className="field-hint">
+              {isLadder
+                ? 'Players are ranked and may challenge eligible players above them.'
+                : 'Everyone plays a scheduled set of opponents.'}
+            </div>
+          </div>
         </div>
+
+        {/* ── Section 2: Match format ── */}
+        <div className="wizard-section">
+          <div className="wizard-section-title">Match Format</div>
+
+          <div className="grid-2">
+            <div className="field-group">
+              <label>Singles / Doubles</label>
+              <div className="segment-group">
+                {['singles', 'doubles'].map((v) => (
+                  <button
+                    key={v}
+                    className={`segment ${s.singlesOrDoubles === v ? 'active' : ''}`}
+                    onClick={() => set('singlesOrDoubles', v)}
+                  >
+                    {v[0].toUpperCase() + v.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="field-group">
+              <label>{sport.formatLabel}</label>
+              <select
+                value={s.format}
+                onChange={(e) => set('format', e.target.value)}
+              >
+                {sport.formatOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {isTennis && (
+            <>
+              <div className="grid-2">
+                <div className="field-group">
+                  <label>Games per set</label>
+                  <select
+                    value={s.gamesPerSet}
+                    onChange={(e) => set('gamesPerSet', Number(e.target.value))}
+                  >
+                    {GAMES_PER_SET.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field-group">
+                  <label>Tiebreak format</label>
+                  <select
+                    value={s.tiebreakFormat}
+                    onChange={(e) => set('tiebreakFormat', e.target.value)}
+                  >
+                    {TIEBREAK_OPTS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {isMultiSet && (
+                <div className="field-group">
+                  <label>Deciding set format</label>
+                  <div className="segment-group">
+                    {DECIDING_OPTS.map((o) => (
+                      <button
+                        key={o.value}
+                        className={`segment ${s.thirdSetFormat === o.value ? 'active' : ''}`}
+                        onClick={() => set('thirdSetFormat', o.value)}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="field-hint">
+                    ↳ Applied to set {s.format === 'best_of_3' ? '3' : '5'} only
+                  </div>
+                </div>
+              )}
+
+              <div className="toggle-row">
+                <div>
+                  <div className="toggle-label">No-Ad scoring</div>
+                  <div className="toggle-sub">
+                    Deuce points decided by one point — speeds up play
+                  </div>
+                </div>
+                <label className="toggle">
+                  <input
+                    type="checkbox"
+                    checked={s.noAd}
+                    onChange={(e) => set('noAd', e.target.checked)}
+                  />
+                  <span className="toggle-track" />
+                </label>
+              </div>
+            </>
+          )}
+
+          {isPickleball && (
+            <div className="field-group">
+              <label>Points to win a game</label>
+              <div className="segment-group">
+                {PB_POINTS.map((o) => (
+                  <button
+                    key={o.value}
+                    className={`segment ${s.pickleballPoints === o.value ? 'active' : ''}`}
+                    onClick={() => set('pickleballPoints', o.value)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Section 3: League rules ── */}
+        <div className="wizard-section">
+          <div className="wizard-section-title">League Rules</div>
+
+          <div className="grid-2">
+            <div className="field-group">
+              <label>Match time limit</label>
+              <select
+                value={s.scoringTime}
+                onChange={(e) => set('scoringTime', e.target.value)}
+              >
+                {TIME_OPTS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field-group">
+              <label>Number of rounds</label>
+              <div className="slider-row">
+                <input
+                  type="range"
+                  min={2}
+                  max={16}
+                  value={s.rounds}
+                  onChange={(e) => set('rounds', Number(e.target.value))}
+                />
+                <div className="slider-val">{s.rounds}</div>
+              </div>
+            </div>
+          </div>
+
+          {isLadder && (
+            <div className="field-group">
+              <label>Challenge window (spots above)</label>
+              <div className="slider-row">
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  value={s.challengeSpots}
+                  onChange={(e) => set('challengeSpots', Number(e.target.value))}
+                />
+                <div className="slider-val">{s.challengeSpots}</div>
+              </div>
+            </div>
+          )}
+
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">Auto-advance rounds</div>
+              <div className="toggle-sub">
+                Automatically generate the next round when all matches are
+                complete
+              </div>
+            </div>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={s.autoAdvance}
+                onChange={(e) => set('autoAdvance', e.target.checked)}
+              />
+              <span className="toggle-track" />
+            </label>
+          </div>
+        </div>
+
       </div>
 
       <div className={`card-footer ${onBack ? 'card-footer-two' : ''}`}>

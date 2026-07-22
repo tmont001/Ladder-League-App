@@ -21,12 +21,15 @@ function participantLabel(league) {
   return `${league.player_count} player${league.player_count !== 1 ? 's' : ''}`;
 }
 
-function LeagueCard({ league, onOpen, onDelete }) {
+function LeagueCard({ league, onOpen, onDelete, isLastOpened }) {
   const SportIcon =
     league.sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
 
   return (
     <div className="my-leagues-card">
+      {isLastOpened && (
+        <div className="my-leagues-card-badge">Last Opened</div>
+      )}
       <div className="my-leagues-card-header">
         <span className="my-leagues-card-icon">
           <SportIcon size={20} color="currentColor" />
@@ -40,6 +43,7 @@ function LeagueCard({ league, onOpen, onDelete }) {
       </div>
       <div className="my-leagues-card-stats">
         <span>{participantLabel(league)}</span>
+        <span className="my-leagues-stat-sep" aria-hidden="true">·</span>
         <span>{league.rounds} round{league.rounds !== 1 ? 's' : ''}</span>
       </div>
       <div className="my-leagues-card-actions">
@@ -182,19 +186,27 @@ function MyLeagues({ onOpenLeague, onCreateLeague, onSignOut, onSessionExpired }
     )}
     <div className="my-leagues-screen">
       <div className="my-leagues-topbar">
-        <div className="my-leagues-title">My Leagues</div>
-        <div className="my-leagues-topbar-actions">
-          {signOutError && (
-            <span className="my-leagues-signout-error">{signOutError}</span>
-          )}
-          <button
-            className="btn-sm"
-            onClick={handleSignOut}
-            disabled={signingOut}
-          >
-            {signingOut ? 'Signing out…' : 'Sign Out'}
-          </button>
+        <div className="my-leagues-header-row">
+          <div>
+            <div className="my-leagues-title">My Leagues</div>
+            <div className="my-leagues-subtitle">Your organizer leagues</div>
+          </div>
+          <div className="my-leagues-header-actions">
+            <button className="btn-outline" onClick={onCreateLeague}>
+              + New League
+            </button>
+            <button
+              className="btn-sm"
+              onClick={handleSignOut}
+              disabled={signingOut}
+            >
+              {signingOut ? 'Signing out…' : 'Sign Out'}
+            </button>
+          </div>
         </div>
+        {signOutError && (
+          <div className="my-leagues-signout-error">{signOutError}</div>
+        )}
       </div>
 
       <div className="my-leagues-body">
@@ -228,15 +240,16 @@ function MyLeagues({ onOpenLeague, onCreateLeague, onSignOut, onSessionExpired }
                 league={league}
                 onOpen={onOpenLeague}
                 onDelete={handleDeleteRequest}
+                isLastOpened={getLastOrgLeagueId() === league.league_id}
               />
             ))}
           </div>
         )}
 
-        {!loading && !error && (
+        {!loading && !error && leagues.length === 0 && (
           <div className="my-leagues-actions">
-            <button className="btn-outline my-leagues-create-btn" onClick={onCreateLeague}>
-              + Create New League
+            <button className="btn-next" style={{ width: 'auto', padding: '0.65rem 1.5rem' }} onClick={onCreateLeague}>
+              + Create Your First League
             </button>
           </div>
         )}

@@ -52,11 +52,12 @@ function HomeScreen({ onCreateLeague, onJoinLeague }) {
             <div className="home-option-text">
               <div className="home-option-title">Create a League</div>
               <div className="home-option-desc">
-                Set up a new league, add players, and get everyone's access
-                codes
+                Organizer: set up a new league, add players, and share access codes
               </div>
             </div>
           </button>
+
+          <span className="home-sep-or" aria-hidden="true">or</span>
 
           <button
             className="home-option-btn home-option-secondary"
@@ -80,8 +81,7 @@ function HomeScreen({ onCreateLeague, onJoinLeague }) {
             <div className="home-option-text">
               <div className="home-option-title">Join a League</div>
               <div className="home-option-desc">
-                Enter your player code to access an existing league and log your
-                match results
+                Player: enter your access code to log results and view standings
               </div>
             </div>
           </button>

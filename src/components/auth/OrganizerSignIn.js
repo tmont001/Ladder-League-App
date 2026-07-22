@@ -68,29 +68,28 @@ function OrganizerSignIn({ onBack, linkExpired, sessionExpired }) {
         )}
 
         {uiState === 'sent' ? (
-          <div className="info-box">
+          <div className="info-box-sent">
+            <div className="info-box-sent-title">Check your email</div>
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                Check your email
-              </div>
-              <div>
-                We sent a sign-in link to <strong>{email}</strong>. Click the
-                link in the email to continue. The link expires in 60 minutes.
-              </div>
-              <div style={{ marginTop: 12 }}>
-                {"Didn't receive it? "}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={handleResend}
-                >
-                  Resend link
-                </button>
-              </div>
+              We sent a sign-in link to <strong>{email}</strong>. Click the
+              link in the email to continue. The link expires in 60 minutes.
+            </div>
+            <div style={{ marginTop: 10 }}>
+              {"Didn't receive it? "}
+              <button
+                type="button"
+                className="link-btn"
+                onClick={handleResend}
+              >
+                Resend link
+              </button>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+            <p className="signin-context">
+              Enter your email to receive a secure sign-in link. No password needed.
+            </p>
             <div className="field-group">
               <label className="field-label" htmlFor="organizer-email">
                 Organizer email address
