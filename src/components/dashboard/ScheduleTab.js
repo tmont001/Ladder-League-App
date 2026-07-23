@@ -56,7 +56,7 @@ function IncomingChallengeCard({ challenge, playerMap, onRespond }) {
   };
 
   return (
-    <div className="match-card">
+    <div className={`match-card${isClientExpired ? ' match-card-done' : ' match-card-incoming'}`}>
       <div className="match-card-left">
         <div className="match-players">
           <span className="match-player-name">{challengerName}</span>
@@ -209,7 +209,7 @@ function ChallengesSection({ respondToChallenge }) {
   }
 
   return (
-    <div className="round-section">
+    <div className="round-section round-section-challenges">
       <div className="round-header">
         <div className="round-title">Challenges</div>
       </div>
@@ -457,7 +457,7 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
                     Cancel
                   </button>
                   <button
-                    className="btn-resolve"
+                    className="btn-resolve btn-skip-confirm"
                     onClick={handleConfirmSkip}
                     disabled={skipPending}
                   >
@@ -598,24 +598,11 @@ function DisputeModal({ match, onClose }) {
           </div>
           <div className="modal-body">
             {match.result && (
-              <div
-                style={{
-                  border: '1px solid var(--border, #e0e0e0)',
-                  borderRadius: '6px',
-                  padding: '0.6rem 0.75rem',
-                  marginBottom: '0.75rem',
-                }}
-              >
+              <div className="dispute-submitted-box">
                 <SubmittedResultSummary match={match} isDoubles={isDoubles} />
               </div>
             )}
-            <p
-              style={{
-                fontSize: '0.85rem',
-                color: 'var(--text)',
-                marginBottom: '0.5rem',
-              }}
-            >
+            <p className="dispute-description">
               Describe what's incorrect. An admin will review within 24 hours.
             </p>
             <textarea
@@ -626,11 +613,7 @@ function DisputeModal({ match, onClose }) {
               rows={3}
             />
             {error && (
-              <div
-                className="modal-error"
-                role="alert"
-                style={{ marginTop: '0.5rem' }}
-              >
+              <div className="modal-error" role="alert">
                 {error}
               </div>
             )}

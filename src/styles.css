@@ -742,18 +742,21 @@ input[type='range']::-webkit-slider-thumb {
 .btn-resolve {
   padding: 0.3rem 0.65rem;
   font-size: 0.75rem;
-  background: transparent;
-  border: 1px solid var(--border);
+  font-weight: 500;
+  font-family: var(--font-body);
+  background: var(--surface-hi);
+  border: 1px solid var(--border-mid);
   border-radius: var(--radius-md);
-  color: var(--text-muted);
+  color: var(--text);
   cursor: pointer;
   transition:
     color var(--transition),
-    border-color var(--transition);
+    border-color var(--transition),
+    background var(--transition);
 }
 .btn-resolve:hover {
-  color: var(--text);
-  border-color: var(--border-mid);
+  background: var(--surface-hov);
+  border-color: var(--border-strong);
 }
 
 .btn-launch {
@@ -3982,5 +3985,411 @@ html.sport-pickleball .theme-light .home-option-primary {
   .my-leagues-header-actions {
     width: 100%;
     justify-content: space-between;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   PASS 2 — DASHBOARD, SCHEDULE, STANDINGS, MODALS
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Dashboard topbar ─────────────────────────────────────── */
+.dashboard-topbar {
+  padding-bottom: 1.25rem;
+}
+.dashboard-league-name {
+  font-size: 1.9rem;
+}
+.dashboard-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.dashboard-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  background: var(--accent-dim);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-left: 2px;
+}
+
+@media (max-width: 680px) {
+  .dashboard-topbar {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem 0 1rem;
+  }
+  .dashboard-topbar-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .dashboard-league-name {
+    font-size: 1.5rem;
+  }
+}
+
+/* ── Tab nav mobile scroll ────────────────────────────────── */
+.dashboard-nav {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.dashboard-nav::-webkit-scrollbar {
+  display: none;
+}
+.nav-tab {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Rank badges (standings top 3) ───────────────────────── */
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--surface-hi);
+  border: 1.5px solid var(--border-mid);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.rank-gold {
+  background: var(--gold-dim);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.rank-silver {
+  background: rgba(160, 160, 180, 0.12);
+  border-color: #9ba3b5;
+  color: #9ba3b5;
+}
+.rank-bronze {
+  background: rgba(172, 109, 55, 0.1);
+  border-color: #ac6d37;
+  color: #ac6d37;
+}
+
+/* ── Standings improvements ───────────────────────────────── */
+.standings-row-top {
+  background: rgba(77, 159, 255, 0.025);
+}
+.standings-row-first .standings-name {
+  font-weight: 600;
+}
+.col-stat {
+  font-size: 0.82rem;
+}
+
+/* ── Round section visual separation ─────────────────────── */
+.schedule-wrapper {
+  gap: 2rem;
+}
+.round-section {
+  padding: 0;
+}
+.round-header {
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.75rem;
+}
+.round-title {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.round-progress-bar {
+  margin-bottom: 0.1rem;
+}
+
+/* ── Challenge section distinct header ────────────────────── */
+.round-section-challenges .round-title {
+  color: var(--accent-text);
+}
+.round-section-challenges .round-header {
+  border-color: var(--accent-dim);
+}
+
+/* ── Match card improvements ──────────────────────────────── */
+.match-card {
+  padding: 1rem 1.1rem;
+}
+.match-card-done {
+  opacity: 0.75;
+}
+.match-player-name {
+  font-size: 0.92rem;
+}
+
+@media (max-width: 600px) {
+  .match-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .match-card-right {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .match-actions {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+/* ── Schedule toolbar ─────────────────────────────────────── */
+.schedule-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 0.25rem;
+}
+.schedule-toolbar-empty {
+  height: 0;
+}
+
+/* ── Modal mobile slide-up + max-height ──────────────────── */
+.modal {
+  display: flex;
+  flex-direction: column;
+}
+.modal-body {
+  flex: 1;
+  min-height: 0;
+}
+.modal-lg .modal-body {
+  max-height: 60vh;
+}
+
+@media (max-width: 600px) {
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal,
+  .modal-sm,
+  .modal-lg {
+    max-width: 100%;
+    width: 100%;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 92vh;
+  }
+  .modal-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-lg .modal-body {
+    max-height: none;
+  }
+}
+
+/* ── Modal close button target size ──────────────────────── */
+.modal-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition);
+}
+.modal-close:hover {
+  background: var(--surface-hi);
+  color: var(--text);
+}
+
+/* ── Score entry modal matchup improvements ───────────────── */
+@media (max-width: 480px) {
+  .modal-matchup {
+    flex-direction: column;
+    gap: 4px;
+    padding: 0.75rem;
+    text-align: center;
+  }
+  .modal-footer {
+    flex-wrap: wrap;
+  }
+  .modal-footer .btn-back {
+    flex: 0 0 auto;
+  }
+  .modal-footer .btn-next {
+    flex: 1;
+    min-width: 140px;
+  }
+}
+
+/* ── Dispute modal submitted score box ────────────────────── */
+.dispute-submitted-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.85rem;
+  background: var(--surface-hi);
+  margin-bottom: 0.75rem;
+}
+.dispute-description {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  line-height: 1.55;
+}
+
+/* ── Player chip sign-out error inline ────────────────────── */
+.player-chip-error {
+  font-size: 0.75rem;
+  color: var(--danger);
+  padding: 2px 12px 4px;
+}
+
+/* ── Notification bell: ensure relative wrap ──────────────── */
+.notif-bell-wrap {
+  position: relative;
+}
+
+/* ── Settings modal section titles ───────────────────────── */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.settings-section:last-child {
+  border-bottom: none;
+}
+.settings-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-dim);
+  padding-bottom: 0.25rem;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+.settings-row-left {
+  flex: 1;
+  min-width: 0;
+}
+.settings-row-label {
+  font-size: 0.88rem;
+  color: var(--text);
+  font-weight: 500;
+}
+.settings-row-sub {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.settings-row select {
+  flex-shrink: 0;
+  width: auto;
+  max-width: 180px;
+}
+
+/* ── Challenge card incoming highlight ────────────────────── */
+.match-card-incoming {
+  border-color: var(--accent-dim);
+  background: rgba(77, 159, 255, 0.03);
+}
+.theme-light .match-card-incoming {
+  background: rgba(26, 115, 232, 0.02);
+}
+
+/* ── btn-score-entry and btn-resolve sizing ───────────────── */
+.btn-score-entry {
+  white-space: nowrap;
+}
+.btn-resolve {
+  white-space: nowrap;
+}
+
+/* ── Dashboard progress strip mobile ─────────────────────── */
+@media (max-width: 640px) {
+  .dashboard-progress-strip {
+    margin-bottom: 1rem;
+  }
+}
+
+/* ── Skip confirm button (danger-tinted) ─────────────────── */
+.btn-skip-confirm {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-dim);
+}
+.btn-skip-confirm:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: var(--danger);
+}
+.btn-skip-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Mobile dashboard header ≤600px ─────────────────────── */
+.btn-sm-label-short {
+  display: none;
+}
+@media (max-width: 600px) {
+  .dashboard-topbar-right {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .dashboard-topbar-right .btn-sm-label {
+    display: none;
+  }
+  .dashboard-topbar-right .btn-sm-label-short {
+    display: inline;
+  }
+  .dashboard-topbar-right .btn-sm {
+    padding: 5px 8px;
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+  }
+  .dashboard-topbar-right .theme-toggle span {
+    display: none;
+  }
+  .dashboard-topbar-right .theme-toggle {
+    padding: 5px 8px;
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+  }
+  .dashboard-topbar-right .player-chip-name {
+    display: none;
+  }
+  .dashboard-topbar-right .player-chip {
+    min-height: 40px;
+    padding: 4px 7px 4px 5px;
+  }
+  .notif-bell-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .notif-dropdown {
+    width: min(290px, calc(100vw - 1rem));
   }
 }

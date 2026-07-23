@@ -82,17 +82,40 @@ function NotificationBell() {
   const { unreadCount, notifications, readAllNotifications } = useLeague();
   const { currentPlayer } = usePlayerIdentity();
   const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutsideClick = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeydown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeydown);
+    };
+  }, [open]);
+
   const handleOpen = () => {
-    setOpen((v) => !v);
-    if (!open && unreadCount > 0 && currentPlayer?.sessionToken)
+    const next = !open;
+    setOpen(next);
+    if (next && unreadCount > 0 && currentPlayer?.sessionToken)
       readAllNotifications(currentPlayer.sessionToken);
   };
+
   return (
-    <div className="notif-bell-wrap">
+    <div className="notif-bell-wrap" ref={wrapRef}>
       <button
         className="notif-bell-btn"
         onClick={handleOpen}
         aria-label="Notifications"
+        aria-expanded={open}
       >
         <svg
           width="18"
@@ -113,7 +136,7 @@ function NotificationBell() {
         )}
       </button>
       {open && (
-        <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
+        <div className="notif-dropdown">
           <div className="notif-dropdown-header">Notifications</div>
           {notifications.length === 0 ? (
             <div className="notif-empty">Nothing new</div>
@@ -183,14 +206,7 @@ function PlayerChip() {
             <div className="player-chip-role">Admin</div>
           )}
           {signOutError && (
-            <div
-              role="alert"
-              style={{
-                fontSize: '0.75rem',
-                color: 'var(--color-error, #ef4444)',
-                padding: '2px 12px 4px',
-              }}
-            >
+            <div role="alert" className="player-chip-error">
               {signOutError}
             </div>
           )}
@@ -280,7 +296,12 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
               ·{' '}
               {singlesOrDoubles.charAt(0).toUpperCase() +
                 singlesOrDoubles.slice(1)}{' '}
-              · Round {currentRoundNumber} of {settings.rounds}
+              · Round {currentRoundNumber}/{settings.rounds}
+              {settings.mode && (
+                <span className="dashboard-mode-pill">
+                  {settings.mode === 'ladder' ? 'Ladder' : 'Round Robin'}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -290,6 +311,7 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
               className="btn-sm"
               onClick={onBackToMyLeagues}
               title="Back to My Leagues"
+              aria-label="Back to My Leagues"
             >
               <svg
                 width="14"
@@ -302,12 +324,13 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
               >
                 <polyline points="15 18 9 12 15 6" />
               </svg>
-              My Leagues
+              <span className="btn-sm-label">My Leagues</span>
+              <span className="btn-sm-label-short" aria-hidden="true">Leagues</span>
             </button>
           )}
           {isAdmin && (
             <>
-              <button className="btn-sm" onClick={() => setShowPlayers(true)}>
+              <button className="btn-sm" onClick={() => setShowPlayers(true)} aria-label="Players" title="Players">
                 <svg
                   width="14"
                   height="14"
@@ -322,12 +345,13 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
-                Players
+                <span className="btn-sm-label">Players</span>
               </button>
               <button
                 className="btn-sm"
                 onClick={() => setShowSettings(true)}
                 title="League Settings"
+                aria-label="League Settings"
               >
                 <svg
                   width="14"
@@ -341,7 +365,7 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
                   <circle cx="12" cy="12" r="3" />
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
-                Settings
+                <span className="btn-sm-label">Settings</span>
               </button>
             </>
           )}
