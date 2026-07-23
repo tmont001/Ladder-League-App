@@ -2,6 +2,8 @@ import Portal from '../shared/Portal';
 import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
+import { useToast } from '../shared/ToastProvider';
+import { useAccessibleDialog } from '../../hooks/useAccessibleDialog';
 
 function getParticipantName(p, isDoubles) {
   return isDoubles ? p.players.map((pl) => pl.name).join(' & ') : p.name;
@@ -20,13 +22,14 @@ function ChallengeModal({ onClose }) {
 
   // Doubles challenges require a design decision (which player issues/receives,
   // how challenger_team_id maps to a challenge row). Until then, block doubles.
+  const doublesInfoRef = useAccessibleDialog(isDoubles, onClose);
   if (isDoubles) {
     return (
       <Portal>
         <div className="modal-overlay" onClick={onClose}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" ref={doublesInfoRef} role="dialog" aria-modal="true" aria-labelledby="challenge-info-title" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-title">Issue a Challenge</div>
+              <div className="modal-title" id="challenge-info-title">Issue a Challenge</div>
               <button className="modal-close" onClick={onClose}>✕</button>
             </div>
             <div className="modal-body">
@@ -74,10 +77,12 @@ function ChallengeForm({
   addChallenge,
   onClose,
 }) {
+  const { showToast } = useToast();
   const [challengerId, setChallengerId] = useState(initialChallengerId);
   const [challengedId, setChallengedId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const dialogRef = useAccessibleDialog(true, onClose, { disableEscape: submitting });
 
   const rankMap = {};
   standings.forEach((s, i) => {
@@ -105,6 +110,7 @@ function ChallengeForm({
     setError('');
     try {
       await addChallenge(challenger, challenged, challengerToken);
+      showToast('Challenge issued.');
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to create challenge.');
@@ -115,10 +121,10 @@ function ChallengeForm({
 
   return (
     <Portal>
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-overlay" onClick={!submitting ? onClose : undefined}>
+        <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="challenge-form-title" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
-            <div className="modal-title">Issue a Challenge</div>
+            <div className="modal-title" id="challenge-form-title">Issue a Challenge</div>
             <button className="modal-close" onClick={onClose}>✕</button>
           </div>
 

@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { PlayerIdentityProvider } from './context/PlayerIdentityContext';
+import { ToastProvider, useToast } from './components/shared/ToastProvider';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 import HomeScreen from './components/HomeScreen';
 import PlayerJoinScreen from './components/PlayerJoinScreen';
 import LeagueSetupStep1 from './components/LeagueSetupStep1';
@@ -11,13 +13,10 @@ import Dashboard from './components/dashboard/Dashboard';
 import OrganizerSignIn from './components/auth/OrganizerSignIn';
 import MyLeagues from './components/MyLeagues';
 import {
-  createLeague,
-  createPlayers,
-  createTeams,
-  createInitialMatches,
-  saveInitialRankings,
+  createLeagueAtomic,
   fetchLeague,
 } from './lib/db';
+import { registerGlobalErrorHandlers } from './lib/reportError';
 import { supabase } from './lib/supabase';
 import { signOutOrganizer } from './lib/auth';
 import {
@@ -40,10 +39,14 @@ import {
 //   'codes'       → Launch codes (organizer saves/shares)
 //   'dashboard'   → Live dashboard
 
+registerGlobalErrorHandlers();
+
 function AppContent() {
+  const { showToast } = useToast();
   const [screen, setScreen] = useState('home');
   const [leagueSettings, setLeagueSettings] = useState(null);
   const [leagueData, setLeagueData] = useState(null);
+  const [playerCodes, setPlayerCodes] = useState(null);
   const [effectiveSettings, setEffectiveSettings] = useState(null);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState(null);
@@ -204,77 +207,72 @@ function AppContent() {
   };
 
   const handleLaunch = async (generatedLeague, finalSettings) => {
+    if (launching) return;
     setLaunching(true);
     setLaunchError(null);
 
     try {
-      const dbLeague = await createLeague(finalSettings);
-      const leagueId = dbLeague.id;
       const isDoubles = finalSettings.singlesOrDoubles === 'doubles';
-
-      let dbParticipants;
+      let players, teams = [], seededOrder;
 
       if (isDoubles) {
         const localTeams = generatedLeague.seededParticipants;
-
-        // De-duplicate players across teams before inserting.
-        // Each player has one local ID; the Map collapses any duplicates.
         const allLocalPlayers = Array.from(
           new Map(
-            localTeams
-              .flatMap((team) => team.players)
-              .map((player) => [player.id, player]),
+            localTeams.flatMap((t) => t.players).map((p) => [p.id, p]),
           ).values(),
         );
-
-        const { idMap: playerIdMap } = await createPlayers(
-          leagueId,
-          allLocalPlayers.map((p) => ({ ...p, isAdmin: false })),
-        );
-
-        // Create teams via secure RPC; server assigns UUIDs.
-        // createTeams returns { [localTeamId]: dbTeamId }.
-        const teamsInput = localTeams.map((team) => ({
-          localId:   team.id,
-          playerIds: team.players.map((p) => playerIdMap[p.id]),
+        players = allLocalPlayers.map((p) => ({
+          local_id:    p.id,
+          name:        p.name,
+          rating:      p.rating      || null,
+          rating_type: p.ratingType  || null,
+          utr_url:     p.utrUrl      || null,
         }));
-        const teamIdMap = await createTeams(leagueId, teamsInput);
-
-        await createInitialMatches(leagueId, generatedLeague.matches, true, teamIdMap);
-
-        // Build dbTeams for rankings — all IDs already known, no DB call needed.
-        const dbTeams = localTeams.map((team) => ({
-          id: teamIdMap[team.id],
-          players: team.players.map((p) => ({ ...p, id: playerIdMap[p.id] })),
+        teams = localTeams.map((t) => ({
+          local_id:         t.id,
+          player_local_ids: t.players.map((p) => p.id),
         }));
-
-        await saveInitialRankings(leagueId, dbTeams);
-        dbParticipants = dbTeams;
-
+        seededOrder = localTeams.map((t) => t.id);
       } else {
         const localPlayers = generatedLeague.seededParticipants;
-
-        const { dbPlayers, idMap: playerIdMap } = await createPlayers(
-          leagueId,
-          localPlayers.map((p) => ({ ...p, isAdmin: false })),
-        );
-
-        await createInitialMatches(leagueId, generatedLeague.matches, false, playerIdMap);
-
-        await saveInitialRankings(leagueId, dbPlayers);
-        dbParticipants = dbPlayers;
+        players = localPlayers.map((p) => ({
+          local_id:    p.id,
+          name:        p.name,
+          rating:      p.rating      || null,
+          rating_type: p.ratingType  || null,
+          utr_url:     p.utrUrl      || null,
+        }));
+        seededOrder = localPlayers.map((p) => p.id);
       }
+
+      const matches = finalSettings.mode === 'ladder'
+        ? []
+        : (generatedLeague.matches || []).map((m) => ({
+            local_p1_id:  m.p1?.id   ?? null,
+            local_p2_id:  m.isBye ? null : (m.p2?.id ?? null),
+            round_number: m.round,
+            type:         m.type    || 'scheduled',
+            is_bye:       m.isBye  || false,
+          }));
+
+      const { leagueId, playerCodes: codes } = await createLeagueAtomic(
+        finalSettings, players, teams, matches, seededOrder,
+      );
 
       setActiveLeagueId(leagueId);
       setOrganizer(leagueId);
+      setLastOrgLeagueId(leagueId);
       setEffectiveSettings({ ...finalSettings, id: leagueId });
-      setLeagueData({ ...generatedLeague, seededParticipants: dbParticipants });
+      setLeagueData(generatedLeague);
+      setPlayerCodes(codes || []);
       setScreen('codes');
+      showToast('League launched! Share the codes below.');
 
     } catch (err) {
       console.error('[App] League launch failed:', err);
       setLaunchError(
-        'We couldn’t create the league. Nothing was launched. Please try again.',
+        err.message || "We couldn't create the league. Nothing was launched. Please try again.",
       );
     } finally {
       setLaunching(false);
@@ -360,9 +358,23 @@ function AppContent() {
     clearActiveLeague();
     setEffectiveSettings(null);
     setLeagueData(null);
+    setPlayerCodes(null);
     setScreen('my-leagues');
     window.history.pushState({}, '', '/');
   };
+
+  // Called by MyLeagues after a successful duplicate-as-new-season launch.
+  // Routes directly to the codes screen so the organizer can share tokens.
+  const handleDuplicateLaunch = useCallback(({ leagueId, playerCodes: codes, settings }) => {
+    setActiveLeagueId(leagueId);
+    setOrganizer(leagueId);
+    setLastOrgLeagueId(leagueId);
+    setEffectiveSettings(settings ? { ...settings, id: leagueId } : { id: leagueId });
+    setLeagueData(null);
+    setPlayerCodes(codes || []);
+    setScreen('codes');
+    showToast('New season created! Share the codes below.');
+  }, [showToast]);
 
   // ── Join flow ────────────────────────────────────────────
   const handleJoined = (player) => {
@@ -426,6 +438,7 @@ function AppContent() {
               onCreateLeague={() => setScreen('setup1')}
               onSignOut={handleOrganizerSignOut}
               onSessionExpired={handleOrgSessionExpired}
+              onDuplicateLaunch={handleDuplicateLaunch}
             />
           )}
 
@@ -468,12 +481,14 @@ function AppContent() {
             />
           )}
 
-          {screen === 'codes' && leagueData && (
+          {screen === 'codes' && effectiveSettings?.id && (
             <LaunchCodesScreen
               leagueId={effectiveSettings?.id}
               leagueName={activeSettings?.leagueName}
               isDoubles={activeSettings?.singlesOrDoubles === 'doubles'}
+              initialPlayerCodes={playerCodes}
               onEnterDashboard={() => {
+                setPlayerCodes(null);
                 setScreen('dashboard');
                 window.history.pushState({}, '', '/dashboard');
               }}
@@ -482,6 +497,7 @@ function AppContent() {
 
           {screen === 'dashboard' && (
             <PlayerIdentityProvider
+              key={activeSettings?.id}
               leagueId={activeSettings?.id}
               isOrganizer={isOrganizerSession}
               initialPlayer={joinedPlayer}
@@ -497,6 +513,9 @@ function AppContent() {
                 onBackToMyLeagues={
                   organizerSession ? handleBackToMyLeagues : undefined
                 }
+                onSwitchLeague={
+                  organizerSession ? handleOpenLeague : undefined
+                }
               />
             </PlayerIdentityProvider>
           )}
@@ -506,7 +525,17 @@ function AppContent() {
   );
 }
 function App() {
-  return <AppContent />;
+  const handleHome = () => {
+    clearActiveLeague();
+    window.location.replace('/');
+  };
+  return (
+    <ErrorBoundary screen="app" onHome={handleHome}>
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
+    </ErrorBoundary>
+  );
 }
 
 export default App;

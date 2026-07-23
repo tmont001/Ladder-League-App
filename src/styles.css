@@ -389,6 +389,12 @@ textarea {
   color: var(--text-muted);
   letter-spacing: 0.02em;
 }
+.ladder-rule-hint {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
 .field-hint code {
   background: var(--code-bg);
   padding: 1px 5px;
@@ -4392,4 +4398,536 @@ html.sport-pickleball .theme-light .home-option-primary {
   .notif-dropdown {
     width: min(290px, calc(100vw - 1rem));
   }
+  /* Mobile: hide desktop-only topbar buttons; theme toggle in PlayerChip */
+  .btn-topbar-desktop {
+    display: none !important;
+  }
+  .theme-toggle-wrap-desktop {
+    display: none !important;
+  }
+  /* Mobile: show Players/Settings/Theme in PlayerChip dropdown */
+  .player-chip-action-mobile {
+    display: block;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TOAST NOTIFICATION SYSTEM
+══════════════════════════════════════════════════════════ */
+
+.toast-region {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 340px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  pointer-events: all;
+  animation: toastSlideIn 0.2s ease both;
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+.toast-success {
+  background: var(--success-dim);
+  border: 1px solid var(--success);
+  color: var(--text);
+}
+
+.toast-error {
+  background: var(--danger-dim);
+  border: 1px solid var(--danger);
+  color: var(--text);
+}
+
+.toast-warning {
+  background: var(--gold-dim);
+  border: 1px solid var(--gold);
+  color: var(--text);
+}
+
+.toast-neutral {
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  color: var(--text);
+}
+
+.toast-message {
+  flex: 1;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 0;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.toast-close:hover {
+  color: var(--text);
+}
+
+@media (max-width: 600px) {
+  .toast-region {
+    bottom: 70px;
+    right: 0.75rem;
+    left: 0.75rem;
+    max-width: none;
+  }
+
+  @keyframes toastSlideIn {
+    from { transform: translateY(16px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   LIFECYCLE BADGES
+══════════════════════════════════════════════════════════ */
+
+.lifecycle-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.lifecycle-badge-ended {
+  background: var(--gold-dim);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+}
+
+.lifecycle-badge-archived {
+  background: var(--surface-hi);
+  border: 1px solid var(--border-mid);
+  color: var(--text-dim);
+}
+
+/* ── Dashboard read-only banner ── */
+.dashboard-readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-bottom: 1px solid;
+}
+.dashboard-readonly-banner-ended {
+  background: color-mix(in srgb, var(--gold) 12%, transparent);
+  border-color: color-mix(in srgb, var(--gold) 35%, transparent);
+  color: var(--gold);
+}
+.dashboard-readonly-banner-archived {
+  background: var(--surface-hi);
+  border-color: var(--border-mid);
+  color: var(--text-dim);
+}
+
+/* ══════════════════════════════════════════════════════════
+   MY LEAGUES — STATUS TABS + CARD UPDATES
+══════════════════════════════════════════════════════════ */
+
+.my-leagues-status-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0.75rem 1.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.my-leagues-status-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.45rem 0.85rem;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.my-leagues-status-tab:hover {
+  color: var(--text);
+}
+
+.my-leagues-status-tab-active {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+  background: var(--surface-hi);
+}
+
+.my-leagues-status-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface-hov);
+  color: var(--text-dim);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.my-leagues-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ══════════════════════════════════════════════════════════
+   LEAGUE ACTION MENU (... button on league cards)
+══════════════════════════════════════════════════════════ */
+
+.league-action-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.league-action-btn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+}
+
+.league-action-btn:hover {
+  background: var(--surface-hi);
+  color: var(--text);
+}
+
+.league-action-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  overflow: hidden;
+  padding: 4px 0;
+}
+
+.league-action-item {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 1rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 0.83rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.league-action-item:hover {
+  background: var(--surface-hi);
+}
+
+.league-action-item-danger {
+  color: var(--danger);
+}
+
+.league-action-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   LEAGUE SWITCHER (dashboard topbar — organizer only)
+══════════════════════════════════════════════════════════ */
+
+.league-switcher-wrap {
+  position: relative;
+}
+
+.league-switcher-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  font-family: var(--font-display, inherit);
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  padding: 0;
+  line-height: 1.1;
+}
+
+.league-switcher-btn:hover .league-switcher-caret {
+  color: var(--text);
+}
+
+.league-switcher-caret {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 2px;
+  transition: color 0.12s;
+}
+
+.league-switcher-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 240px;
+  max-width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-lg);
+  z-index: 300;
+  overflow: hidden;
+  padding: 4px 0;
+}
+
+.league-switcher-group-label {
+  padding: 0.4rem 1rem 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.league-switcher-item {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 1rem;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.league-switcher-item:hover {
+  background: var(--surface-hi);
+}
+
+.league-switcher-item-current {
+  color: var(--accent-text);
+  font-weight: 600;
+  cursor: default;
+}
+
+.league-switcher-item-current:hover {
+  background: none;
+}
+
+.league-switcher-item-ended {
+  color: var(--text-muted);
+}
+
+.league-switcher-footer {
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  margin-top: 4px;
+}
+
+.league-switcher-all {
+  font-size: 0.78rem;
+  color: var(--accent-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.league-switcher-all:hover {
+  text-decoration: underline;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PLAYER CHIP — MOBILE MENU ADDITIONS
+══════════════════════════════════════════════════════════ */
+
+.player-chip-action {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--text);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.player-chip-action:hover {
+  background: var(--surface-hi);
+}
+
+/* Hidden on desktop — shown only inside mobile PlayerChip menu */
+.player-chip-action-mobile {
+  display: none;
+}
+
+/* ══════════════════════════════════════════════════════════
+   DESKTOP TOPBAR WRAPPERS (visible >600px, hidden ≤600px)
+══════════════════════════════════════════════════════════ */
+
+.btn-topbar-desktop {
+  display: inline-flex;
+}
+
+.theme-toggle-wrap-desktop {
+  display: contents;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ERROR BOUNDARY FALLBACK UPGRADES
+══════════════════════════════════════════════════════════ */
+
+.error-boundary-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.error-boundary-id {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-family: monospace;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ONBOARDING CHECKLIST (dashboard, organizer first 7 days)
+══════════════════════════════════════════════════════════ */
+
+.onboarding-card {
+  background: var(--surface-hi);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.onboarding-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.onboarding-title {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.onboarding-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 0;
+}
+
+.onboarding-dismiss:hover {
+  color: var(--text);
+}
+
+.onboarding-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.onboarding-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.onboarding-step-done {
+  color: var(--text);
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
+.onboarding-check {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  border-radius: 50%;
+  background: var(--border-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  margin-top: 1px;
+}
+
+.onboarding-check-done {
+  background: var(--success);
+  color: white;
 }

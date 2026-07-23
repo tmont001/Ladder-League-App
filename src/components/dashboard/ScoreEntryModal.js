@@ -3,6 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 import { ORG_SESSION_EXPIRED_MSG } from '../../lib/db';
+import { useToast } from '../shared/ToastProvider';
+import { useAccessibleDialog } from '../../hooks/useAccessibleDialog';
 
 // ─────────────────────────────────────────────────────────────
 // Score options
@@ -284,6 +286,9 @@ function SetScoreRow({
 function ScoreEntryModal({ match, onClose }) {
   const { settings, isDoubles, submitResult, recordOfficialResult } = useLeague();
   const { currentPlayer, isOrgIdentity, orgSessionExpired } = usePlayerIdentity();
+  const { showToast } = useToast();
+  const [submitting, setSubmitting] = useState(false);
+  const dialogRef = useAccessibleDialog(true, onClose, { disableEscape: submitting });
 
   const sport = settings.sport;
   const format = settings.format;
@@ -309,7 +314,6 @@ function ScoreEntryModal({ match, onClose }) {
   const [date, setDate] = useState('');
   const [location, setLocation] = useState('');
   const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
   const handleSetChange = (idx, field, val) => {
     setSets((prev) => {
@@ -418,8 +422,10 @@ function ScoreEntryModal({ match, onClose }) {
     try {
       if (isOrgIdentity) {
         await recordOfficialResult(match.id, result);
+        showToast('Score recorded.');
       } else {
         await submitResult(match.id, result, currentPlayer?.sessionToken || null);
+        showToast('Score submitted. Waiting for opponent confirmation.');
       }
       onClose();
     } catch (err) {
@@ -437,12 +443,16 @@ function ScoreEntryModal({ match, onClose }) {
     <Portal>
       <div
         className="modal-overlay"
-        onClick={onClose}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="score-modal-title"
+        onClick={!submitting ? onClose : undefined}
       >
-        <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal"
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="score-modal-title"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="modal-header">
             <div className="modal-title" id="score-modal-title">
               {isOrgIdentity ? 'Record Official Score' : 'Enter Score'}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LeagueProvider, useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
+import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../shared/ThemeToggle';
 import PlayerPicker from '../PlayerPicker';
 import { TennisRacquetIcon, PickleballPaddleIcon } from '../SportIcons';
@@ -10,21 +11,16 @@ import StatsTab from './StatsTab';
 import PlayersPanel from './PlayersPanel';
 import SettingsModal from './SettingsModal';
 import ErrorBoundary from '../shared/ErrorBoundary';
+import { listMyLeagues } from '../../lib/db';
+import { useDismissibleLayer } from '../../hooks/useDismissibleLayer';
+import { useToast } from '../shared/ToastProvider';
 
 const TABS = [
   {
     id: 'standings',
     label: 'Standings',
     icon: (
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
         <line x1="8" y1="6" x2="21" y2="6" />
         <line x1="8" y1="12" x2="21" y2="12" />
         <line x1="8" y1="18" x2="21" y2="18" />
@@ -38,15 +34,7 @@ const TABS = [
     id: 'schedule',
     label: 'Schedule',
     icon: (
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
         <rect x="3" y="4" width="18" height="18" rx="2" />
         <line x1="16" y1="2" x2="16" y2="6" />
         <line x1="8" y1="2" x2="8" y2="6" />
@@ -58,24 +46,13 @@ const TABS = [
     id: 'stats',
     label: 'Stats',
     icon: (
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
         <line x1="18" y1="20" x2="18" y2="10" />
         <line x1="12" y1="20" x2="12" y2="4" />
         <line x1="6" y1="20" x2="6" y2="14" />
       </svg>
     ),
   },
-  // Messages tab omitted: MessengerTab is in-memory only and not delivered to
-  // other users. Messages are lost on page refresh and are invisible to anyone
-  // else in the league.
 ];
 
 function NotificationBell() {
@@ -87,9 +64,7 @@ function NotificationBell() {
   useEffect(() => {
     if (!open) return;
     const handleOutsideClick = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
-        setOpen(false);
-      }
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
     };
     const handleKeydown = (e) => {
       if (e.key === 'Escape') setOpen(false);
@@ -111,28 +86,13 @@ function NotificationBell() {
 
   return (
     <div className="notif-bell-wrap" ref={wrapRef}>
-      <button
-        className="notif-bell-btn"
-        onClick={handleOpen}
-        aria-label="Notifications"
-        aria-expanded={open}
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
+      <button className="notif-bell-btn" onClick={handleOpen} aria-label="Notifications" aria-expanded={open}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {unreadCount > 0 && (
-          <span className="notif-badge">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
+          <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
         )}
       </button>
       {open && (
@@ -142,10 +102,7 @@ function NotificationBell() {
             <div className="notif-empty">Nothing new</div>
           ) : (
             notifications.slice(0, 10).map((n) => (
-              <div
-                key={n.id}
-                className={`notif-item ${n.read ? 'notif-read' : 'notif-unread'}`}
-              >
+              <div key={n.id} className={`notif-item ${n.read ? 'notif-read' : 'notif-unread'}`}>
                 <div className="notif-message">{n.message}</div>
                 <div className="notif-time">{formatTimeAgo(n.created_at)}</div>
               </div>
@@ -168,11 +125,14 @@ function formatTimeAgo(iso) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function PlayerChip() {
+function PlayerChip({ onShowPlayers, onShowSettings, onShowGettingStarted }) {
   const { currentPlayer, logout, isOrgIdentity, orgSignOut } = usePlayerIdentity();
+  const { isDark, toggleTheme } = useTheme();
   const [showMenu, setShowMenu] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState(null);
+  const menuRef = useDismissibleLayer(showMenu, useCallback(() => setShowMenu(false), []));
+
   if (!currentPlayer) return null;
 
   const handleSignOut = async () => {
@@ -180,24 +140,19 @@ function PlayerChip() {
     setSignOutError(null);
     try {
       await orgSignOut();
-      // On success App.js clears state and navigates home — this
-      // component unmounts so no further state update is needed.
     } catch {
-      // Keep the user on their current screen; do not expose the raw error.
       setSigningOut(false);
       setSignOutError('Sign out failed. Please try again.');
     }
   };
 
   return (
-    <div className="player-chip-wrap">
-      <button className="player-chip" onClick={() => setShowMenu((v) => !v)}>
+    <div className="player-chip-wrap" ref={menuRef}>
+      <button className="player-chip" onClick={() => setShowMenu((v) => !v)} aria-expanded={showMenu}>
         <span className="player-chip-avatar">
           {currentPlayer.name.charAt(0).toUpperCase()}
         </span>
-        <span className="player-chip-name">
-          {currentPlayer.name.split(' ')[0]}
-        </span>
+        <span className="player-chip-name">{currentPlayer.name.split(' ')[0]}</span>
       </button>
       {showMenu && (
         <div className="player-chip-menu">
@@ -206,16 +161,44 @@ function PlayerChip() {
             <div className="player-chip-role">Admin</div>
           )}
           {signOutError && (
-            <div role="alert" className="player-chip-error">
-              {signOutError}
-            </div>
+            <div role="alert" className="player-chip-error">{signOutError}</div>
           )}
-          {isOrgIdentity && orgSignOut ? (
+
+          {/* Mobile-only: Players, Settings, Getting Started */}
+          {onShowPlayers && (
             <button
-              className="player-chip-logout"
-              onClick={handleSignOut}
-              disabled={signingOut}
+              className="player-chip-action player-chip-action-mobile"
+              onClick={() => { setShowMenu(false); onShowPlayers(); }}
             >
+              Players
+            </button>
+          )}
+          {onShowSettings && (
+            <button
+              className="player-chip-action player-chip-action-mobile"
+              onClick={() => { setShowMenu(false); onShowSettings(); }}
+            >
+              Settings
+            </button>
+          )}
+          {isOrgIdentity && onShowGettingStarted && (
+            <button
+              className="player-chip-action player-chip-action-mobile"
+              onClick={() => { setShowMenu(false); onShowGettingStarted(); }}
+            >
+              Getting Started
+            </button>
+          )}
+          {/* Mobile-only: Theme toggle */}
+          <button
+            className="player-chip-action player-chip-action-mobile"
+            onClick={toggleTheme}
+          >
+            {isDark ? 'Light Mode' : 'Dark Mode'}
+          </button>
+
+          {isOrgIdentity && orgSignOut ? (
+            <button className="player-chip-logout" onClick={handleSignOut} disabled={signingOut}>
               {signingOut ? 'Signing out…' : 'Sign Out'}
             </button>
           ) : (
@@ -229,15 +212,173 @@ function PlayerChip() {
   );
 }
 
-function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
-  const { settings, rounds, currentRoundNumber, loadNotifications, saveSettings } =
+function LeagueSwitcher({ currentLeagueId, leagueName, onSwitch, onBackToMyLeagues }) {
+  const [open, setOpen] = useState(false);
+  const [leagues, setLeagues] = useState([]);
+  const switcherRef = useDismissibleLayer(open, useCallback(() => setOpen(false), []));
+
+  useEffect(() => {
+    listMyLeagues()
+      .then(setLeagues)
+      .catch(() => {});
+  }, []);
+
+  const others = leagues.filter(
+    (l) => l.league_id !== currentLeagueId && l.status !== 'archived',
+  );
+
+  if (!open) {
+    return (
+      <div className="league-switcher-wrap" ref={switcherRef}>
+        <button
+          className="league-switcher-btn"
+          onClick={() => setOpen(true)}
+          aria-label="Switch league"
+          aria-haspopup="listbox"
+          aria-expanded={false}
+        >
+          <span>{leagueName}</span>
+          <span className="league-switcher-caret" aria-hidden="true">▾</span>
+        </button>
+      </div>
+    );
+  }
+
+  const active   = others.filter((l) => l.status === 'active');
+  const ended    = others.filter((l) => l.status === 'ended');
+
+  return (
+    <div className="league-switcher-wrap" ref={switcherRef}>
+      <button
+        className="league-switcher-btn"
+        onClick={() => setOpen(false)}
+        aria-label="Close league switcher"
+        aria-expanded={true}
+      >
+        <span>{leagueName}</span>
+        <span className="league-switcher-caret" aria-hidden="true">▴</span>
+      </button>
+      <div className="league-switcher-menu" role="listbox" aria-label="Switch league">
+        <div className="league-switcher-item league-switcher-item-current" role="option" aria-selected="true">
+          {leagueName}
+        </div>
+
+        {active.length > 0 && (
+          <>
+            <div className="league-switcher-group-label">Active</div>
+            {active.map((l) => (
+              <button
+                key={l.league_id}
+                className="league-switcher-item"
+                role="option"
+                aria-selected="false"
+                onClick={() => { setOpen(false); onSwitch(l.league_id); }}
+              >
+                {l.name}
+              </button>
+            ))}
+          </>
+        )}
+
+        {ended.length > 0 && (
+          <>
+            <div className="league-switcher-group-label">Ended</div>
+            {ended.map((l) => (
+              <button
+                key={l.league_id}
+                className="league-switcher-item league-switcher-item-ended"
+                role="option"
+                aria-selected="false"
+                onClick={() => { setOpen(false); onSwitch(l.league_id); }}
+              >
+                {l.name}
+              </button>
+            ))}
+          </>
+        )}
+
+        <div className="league-switcher-footer">
+          <button
+            className="league-switcher-all"
+            onClick={() => { setOpen(false); onBackToMyLeagues(); }}
+          >
+            All Leagues →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OnboardingChecklist({ settings, matches, challenges, isDoubles, dismissed, onDismiss }) {
+  if (dismissed || !settings?.id) return null;
+
+  const hasResult = matches?.some((m) => m.status === 'confirmed' || m.status === 'resolved');
+  const hasChallenge = (challenges?.length ?? 0) > 0;
+  const isLadder = settings.mode === 'ladder';
+  const showChallengeStep =
+    isLadder && !isDoubles && settings?.challengesEnabled !== false;
+
+  const steps = [
+    { label: 'League created',              done: true },
+    { label: 'Share player access codes',   done: false },
+    { label: 'First result recorded',       done: hasResult },
+    ...(showChallengeStep
+      ? [{ label: 'First challenge issued', done: hasChallenge }]
+      : []),
+  ];
+
+  return (
+    <div className="onboarding-card">
+      <div className="onboarding-header">
+        <span className="onboarding-title">Getting started</span>
+        <button className="onboarding-dismiss" onClick={onDismiss} aria-label="Dismiss checklist">
+          Dismiss
+        </button>
+      </div>
+      <ul className="onboarding-steps">
+        {steps.map((step) => (
+          <li key={step.label} className={`onboarding-step ${step.done ? 'onboarding-step-done' : ''}`}>
+            <span className={`onboarding-check ${step.done ? 'onboarding-check-done' : ''}`}>
+              {step.done ? '✓' : ''}
+            </span>
+            <span>{step.label}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="onboarding-guidance">
+        <p><strong>Organizers</strong> sign in via Magic Link from the home screen.</p>
+        <p><strong>Players</strong> join using their unique access code at the join screen.</p>
+      </div>
+    </div>
+  );
+}
+
+function DashboardContent({ onSettingsSave, onBackToMyLeagues, onSwitchLeague }) {
+  const { settings, rounds, currentRoundNumber, loadNotifications, saveSettings, matches, challenges, isDoubles } =
     useLeague();
   const { currentPlayer, isAdmin, isOrgIdentity } = usePlayerIdentity();
-  const [activeTab, setActiveTab] = useState('standings');
-  const [showPlayers, setShowPlayers] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const { showToast } = useToast();
+  const [activeTab, setActiveTab]         = useState('standings');
+  const [showPlayers, setShowPlayers]     = useState(false);
+  const [showSettings, setShowSettings]   = useState(false);
+  const [savingSettings, setSavingSettings]   = useState(false);
   const [saveSettingsError, setSaveSettingsError] = useState(null);
+
+  const checklistStorageKey = `ll_onboarding_dismissed_${settings?.id}`;
+  const [checklistDismissed, setChecklistDismissed] = useState(() => {
+    if (localStorage.getItem(`ll_onboarding_dismissed_${settings?.id}`)) return true;
+    const ageMs = Date.now() - new Date(settings?.createdAt || 0).getTime();
+    return ageMs > 7 * 24 * 60 * 60 * 1000;
+  });
+  const handleDismissChecklist = useCallback(() => {
+    localStorage.setItem(checklistStorageKey, '1');
+    setChecklistDismissed(true);
+  }, [checklistStorageKey]);
+  const handleReopenChecklist = useCallback(() => {
+    localStorage.removeItem(checklistStorageKey);
+    setChecklistDismissed(false);
+  }, [checklistStorageKey]);
 
   const handleSettingsSave = async (s) => {
     setSavingSettings(true);
@@ -246,6 +387,7 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
       await saveSettings(s);
       onSettingsSave(s);
       setShowSettings(false);
+      showToast('Settings saved.');
     } catch (err) {
       console.error('[Dashboard] settings save failed:', err);
       setSaveSettingsError('Something went wrong. Please try again.');
@@ -254,9 +396,6 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
     }
   };
 
-  // Notification refresh: on mount, on window focus, every 45 s.
-  // Organizer has no session token — skip entirely.
-  // Guard prevents overlapping fetches.
   const notifInflight = useRef(false);
   const refreshNotifs = useCallback(async () => {
     const token = currentPlayer?.sessionToken;
@@ -276,10 +415,9 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
     };
   }, [refreshNotifs]);
 
-  const sport = settings?.sport ?? '';
+  const sport            = settings?.sport ?? '';
   const singlesOrDoubles = settings?.singlesOrDoubles ?? '';
-  const SportIcon =
-    sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
+  const SportIcon        = sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
 
   return (
     <div className="dashboard">
@@ -290,12 +428,20 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
             <SportIcon size={22} color="currentColor" />
           </span>
           <div>
-            <div className="dashboard-league-name">{settings.leagueName}</div>
+            {isOrgIdentity && onSwitchLeague ? (
+              <LeagueSwitcher
+                currentLeagueId={settings?.id}
+                leagueName={settings.leagueName}
+                onSwitch={onSwitchLeague}
+                onBackToMyLeagues={onBackToMyLeagues}
+              />
+            ) : (
+              <div className="dashboard-league-name">{settings.leagueName}</div>
+            )}
             <div className="dashboard-meta">
               {sport.charAt(0).toUpperCase() + sport.slice(1)}{' '}
               ·{' '}
-              {singlesOrDoubles.charAt(0).toUpperCase() +
-                singlesOrDoubles.slice(1)}{' '}
+              {singlesOrDoubles.charAt(0).toUpperCase() + singlesOrDoubles.slice(1)}{' '}
               · Round {currentRoundNumber}/{settings.rounds}
               {settings.mode && (
                 <span className="dashboard-mode-pill">
@@ -305,6 +451,7 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
             </div>
           </div>
         </div>
+
         <div className="dashboard-topbar-right">
           {isOrgIdentity && onBackToMyLeagues && (
             <button
@@ -313,33 +460,24 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
               title="Back to My Leagues"
               aria-label="Back to My Leagues"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
               <span className="btn-sm-label">My Leagues</span>
               <span className="btn-sm-label-short" aria-hidden="true">Leagues</span>
             </button>
           )}
+
           {isAdmin && (
             <>
-              <button className="btn-sm" onClick={() => setShowPlayers(true)} aria-label="Players" title="Players">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                >
+              {/* Hidden at ≤600px — moved to PlayerChip mobile menu */}
+              <button
+                className="btn-sm btn-topbar-desktop"
+                onClick={() => setShowPlayers(true)}
+                aria-label="Players"
+                title="Players"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -347,31 +485,35 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
                 </svg>
                 <span className="btn-sm-label">Players</span>
               </button>
-              <button
-                className="btn-sm"
-                onClick={() => setShowSettings(true)}
-                title="League Settings"
-                aria-label="League Settings"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
+              {settings?.status === 'active' && (
+                <button
+                  className="btn-sm btn-topbar-desktop"
+                  onClick={() => setShowSettings(true)}
+                  title="League Settings"
+                  aria-label="League Settings"
                 >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-                <span className="btn-sm-label">Settings</span>
-              </button>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                  <span className="btn-sm-label">Settings</span>
+                </button>
+              )}
             </>
           )}
+
           <NotificationBell />
-          <PlayerChip />
-          <ThemeToggle />
+
+          <PlayerChip
+            onShowPlayers={isAdmin ? () => setShowPlayers(true) : null}
+            onShowSettings={isAdmin && settings?.status === 'active' ? () => setShowSettings(true) : null}
+            onShowGettingStarted={isOrgIdentity ? handleReopenChecklist : null}
+          />
+
+          {/* Hidden at ≤600px — theme control available in PlayerChip menu */}
+          <span className="theme-toggle-wrap-desktop">
+            <ThemeToggle />
+          </span>
         </div>
       </div>
 
@@ -386,6 +528,19 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
         />
       )}
 
+      {(settings?.status === 'ended' || settings?.status === 'archived') && (
+        <div
+          className={`dashboard-readonly-banner dashboard-readonly-banner-${settings.status}`}
+          role="status"
+        >
+          <span>
+            {settings.status === 'ended'
+              ? 'This league has ended. Scores and standings are preserved but no new results can be submitted.'
+              : 'This league is archived. It is read-only.'}
+          </span>
+        </div>
+      )}
+
       {/* Progress strip */}
       <div className="dashboard-progress-strip">
         {rounds.map((r) => (
@@ -398,11 +553,7 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
       </div>
 
       {/* Nav Tabs */}
-      <nav
-        className="dashboard-nav"
-        aria-label="Dashboard sections"
-        role="tablist"
-      >
+      <nav className="dashboard-nav" aria-label="Dashboard sections" role="tablist">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -418,26 +569,29 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues }) {
       </nav>
 
       {/* Tab Content */}
-      <main
-        id="main-content"
-        className="dashboard-content"
-        role="tabpanel"
-        aria-live="polite"
-      >
+      <main id="main-content" className="dashboard-content" role="tabpanel" aria-live="polite">
+        {/* Onboarding checklist — organizer only */}
+        {isOrgIdentity && activeTab === 'standings' && (
+          <OnboardingChecklist
+            settings={settings}
+            matches={matches}
+            challenges={challenges}
+            isDoubles={isDoubles}
+            dismissed={checklistDismissed}
+            onDismiss={handleDismissChecklist}
+          />
+        )}
         {activeTab === 'standings' && <StandingsTab />}
-        {activeTab === 'schedule' && <ScheduleTab />}
-        {activeTab === 'stats' && <StatsTab />}
+        {activeTab === 'schedule'  && <ScheduleTab />}
+        {activeTab === 'stats'     && <StatsTab />}
       </main>
     </div>
   );
 }
 
-function DashboardInner({ onSettingsSave, onBackToMyLeagues }) {
+function DashboardInner({ onSettingsSave, onBackToMyLeagues, onSwitchLeague }) {
   const { currentPlayer, loading } = usePlayerIdentity();
-  const { settings, loadingDb } = useLeague();
-  // Block DashboardContent until both the player identity AND the league
-  // settings are fully resolved. loadingDb is true when a player joined with
-  // minimal settings (no sport/singlesOrDoubles) and fetchLeague hasn't run yet.
+  const { settings, loadingDb }    = useLeague();
   if (loading || loadingDb)
     return (
       <div className="dashboard-loading">
@@ -446,24 +600,24 @@ function DashboardInner({ onSettingsSave, onBackToMyLeagues }) {
       </div>
     );
   if (!currentPlayer)
-    return (
-      <PlayerPicker leagueName={settings?.leagueName} sport={settings?.sport} />
-    );
+    return <PlayerPicker leagueName={settings?.leagueName} sport={settings?.sport} />;
   return (
     <DashboardContent
       onSettingsSave={onSettingsSave}
       onBackToMyLeagues={onBackToMyLeagues}
+      onSwitchLeague={onSwitchLeague}
     />
   );
 }
 
-function Dashboard({ settings, leagueData, onSettingsSave, onBackToMyLeagues }) {
+function Dashboard({ settings, leagueData, onSettingsSave, onBackToMyLeagues, onSwitchLeague }) {
   return (
     <LeagueProvider settings={settings} initialLeagueData={leagueData}>
-      <ErrorBoundary>
+      <ErrorBoundary screen="dashboard" leagueId={settings?.id}>
         <DashboardInner
           onSettingsSave={onSettingsSave}
           onBackToMyLeagues={onBackToMyLeagues}
+          onSwitchLeague={onSwitchLeague}
         />
       </ErrorBoundary>
     </LeagueProvider>

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useLeague } from '../../context/LeagueContext';
 import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
+import { useToast } from '../shared/ToastProvider';
 import ScoreEntryModal from './ScoreEntryModal';
 import ChallengeModal from './ChallengeModal';
 import Portal from '../shared/Portal';
+import { useAccessibleDialog } from '../../hooks/useAccessibleDialog';
 
 function getParticipantName(p, isDoubles) {
   if (!p) return 'BYE';
@@ -35,6 +37,9 @@ function daysUntil(iso) {
 
 function IncomingChallengeCard({ challenge, playerMap, onRespond }) {
   const { currentPlayer } = usePlayerIdentity();
+  const { settings } = useLeague();
+  const { showToast } = useToast();
+  const isReadOnly = settings?.status !== 'active';
   const [respondingWith, setRespondingWith] = useState(null);
   const [error, setError] = useState(null);
 
@@ -49,6 +54,7 @@ function IncomingChallengeCard({ challenge, playerMap, onRespond }) {
     setError(null);
     try {
       await onRespond(currentPlayer.sessionToken, challenge.id, accept);
+      showToast(accept ? 'Challenge accepted.' : 'Challenge declined.');
     } catch (err) {
       setError(err?.message || 'Failed to respond. Please try again.');
       setRespondingWith(null);
@@ -86,22 +92,24 @@ function IncomingChallengeCard({ challenge, playerMap, onRespond }) {
         ) : (
           <>
             <StatusBadge status="pending" />
-            <div className="match-actions">
-              <button
-                className="btn-score-entry"
-                onClick={() => handleRespond(true)}
-                disabled={respondingWith !== null}
-              >
-                {respondingWith === 'accept' ? '…' : 'Accept'}
-              </button>
-              <button
-                className="btn-resolve"
-                onClick={() => handleRespond(false)}
-                disabled={respondingWith !== null}
-              >
-                {respondingWith === 'decline' ? '…' : 'Decline'}
-              </button>
-            </div>
+            {!isReadOnly && (
+              <div className="match-actions">
+                <button
+                  className="btn-score-entry"
+                  onClick={() => handleRespond(true)}
+                  disabled={respondingWith !== null}
+                >
+                  {respondingWith === 'accept' ? '…' : 'Accept'}
+                </button>
+                <button
+                  className="btn-resolve"
+                  onClick={() => handleRespond(false)}
+                  disabled={respondingWith !== null}
+                >
+                  {respondingWith === 'decline' ? '…' : 'Decline'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -306,8 +314,9 @@ function SubmittedResultSummary({ match, isDoubles }) {
 }
 
 function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
-  const { isDoubles } = useLeague();
+  const { isDoubles, settings } = useLeague();
   const { currentPlayer, isAdmin } = usePlayerIdentity();
+  const isReadOnly = settings?.status !== 'active';
   const [skipConfirming, setSkipConfirming] = useState(false);
   const [skipPending, setSkipPending] = useState(false);
   const [skipError, setSkipError] = useState(null);
@@ -419,7 +428,7 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
       <div className="match-card-right">
         <StatusBadge status={match.status} type={match.type} />
 
-        {isPending && !match.isBye && (
+        {isPending && !match.isBye && !isReadOnly && (
           <div className="match-actions">
             <button
               className="btn-score-entry"
@@ -479,7 +488,9 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
         {isAwaiting && (
           <div className="match-actions">
             <SubmittedResultSummary match={match} isDoubles={isDoubles} />
-            {canConfirm ? (
+            {isReadOnly ? (
+              <span className="match-waiting-label">League ended</span>
+            ) : canConfirm ? (
               <>
                 <button
                   className="btn-score-entry"
@@ -503,7 +514,7 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
         {isDisputed && (
           <div className="match-actions">
             <SubmittedResultSummary match={match} isDoubles={isDoubles} />
-            {isAdmin ? (
+            {!isReadOnly && isAdmin ? (
               <button
                 className="btn-score-entry"
                 onClick={() => onConfirm(match)}
@@ -512,7 +523,7 @@ function MatchCard({ match, onEnterScore, onConfirm, onDispute, onSkip }) {
               </button>
             ) : (
               <span className="match-disputed-label">
-                ⚠ Pending admin review
+                {isReadOnly ? 'League ended' : '⚠ Pending admin review'}
               </span>
             )}
           </div>
@@ -568,9 +579,11 @@ function RoundSection({ round, onEnterScore, onConfirm, onDispute, onSkip }) {
 function DisputeModal({ match, onClose }) {
   const { disputeResult, isDoubles } = useLeague();
   const { currentPlayer } = usePlayerIdentity();
+  const { showToast } = useToast();
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const dialogRef = useAccessibleDialog(true, onClose, { disableEscape: loading });
 
   const handleSubmit = async () => {
     if (!reason.trim()) return;
@@ -578,6 +591,7 @@ function DisputeModal({ match, onClose }) {
     setError(null);
     try {
       await disputeResult(match.id, currentPlayer?.sessionToken, reason.trim());
+      showToast('Dispute submitted.');
       onClose();
     } catch (err) {
       setError(err?.message || 'Failed to submit dispute. Please try again.');
@@ -588,10 +602,10 @@ function DisputeModal({ match, onClose }) {
 
   return (
     <Portal>
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal modal-sm" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-overlay" onClick={!loading ? onClose : undefined}>
+        <div className="modal modal-sm" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="dispute-modal-title" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
-            <div className="modal-title">Dispute Score</div>
+            <div className="modal-title" id="dispute-modal-title">Dispute Score</div>
             <button className="modal-close" onClick={onClose}>
               ✕
             </button>
@@ -639,6 +653,8 @@ function DisputeModal({ match, onClose }) {
 function ScheduleTab() {
   const { rounds, confirmResult, resolveDispute, resolveMatch, settings, respondToChallenge } = useLeague();
   const { currentPlayer, isOrgIdentity } = usePlayerIdentity();
+  const { showToast } = useToast();
+  const isReadOnly = settings?.status !== 'active';
   const challengesEnabled =
     settings?.mode === 'ladder' && settings?.challengesEnabled !== false;
   const [scoreMatch, setScoreMatch] = useState(null);
@@ -648,18 +664,21 @@ function ScheduleTab() {
   const handleConfirm = async (match) => {
     if (isOrgIdentity) {
       await resolveDispute(match.id);
+      showToast('Dispute resolved.');
     } else {
       await confirmResult(match.id, currentPlayer?.sessionToken || null);
+      showToast('Result confirmed.');
     }
   };
   const handleSkip = async (matchId) => {
     await resolveMatch(matchId);
+    showToast('Match skipped.');
   };
 
   return (
     <div className="schedule-wrapper">
       <div className="schedule-toolbar">
-        {challengesEnabled && (
+        {challengesEnabled && !isReadOnly && (
           <button
             className="btn-outline"
             onClick={() => setShowChallenge(true)}

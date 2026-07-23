@@ -83,6 +83,10 @@ export function generateLeague(settings, playerData) {
   const rawParticipants = isDoubles ? playerData.teams : playerData.players;
   const seededParticipants = seedParticipants(rawParticipants, isDoubles);
 
+  if (settings.mode === 'ladder') {
+    return { seededParticipants, rounds: [], matches: [] };
+  }
+
   const rrSchedule = buildRoundRobinSchedule(seededParticipants.length);
 
   // We only use as many rounds as the setting dictates

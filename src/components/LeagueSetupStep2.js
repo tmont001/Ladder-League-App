@@ -282,36 +282,38 @@ function SettingsSummary({ settings, overrides, onOverride }) {
           </span>
         </div>
 
-        <div className="summary-row summary-row-edit">
-          <span className="summary-row-label">Rounds</span>
-          <div className="summary-inline-edit">
-            <button
-              className="edit-stepper"
-              onClick={() =>
-                onOverride(
-                  'rounds',
-                  Math.max(1, (overrides.rounds ?? settings.rounds) - 1),
-                )
-              }
-            >
-              −
-            </button>
-            <span className="edit-stepper-val">
-              {overrides.rounds ?? settings.rounds}
-            </span>
-            <button
-              className="edit-stepper"
-              onClick={() =>
-                onOverride(
-                  'rounds',
-                  Math.min(16, (overrides.rounds ?? settings.rounds) + 1),
-                )
-              }
-            >
-              +
-            </button>
+        {settings.mode !== 'ladder' && (
+          <div className="summary-row summary-row-edit">
+            <span className="summary-row-label">Rounds</span>
+            <div className="summary-inline-edit">
+              <button
+                className="edit-stepper"
+                onClick={() =>
+                  onOverride(
+                    'rounds',
+                    Math.max(1, (overrides.rounds ?? settings.rounds) - 1),
+                  )
+                }
+              >
+                −
+              </button>
+              <span className="edit-stepper-val">
+                {overrides.rounds ?? settings.rounds}
+              </span>
+              <button
+                className="edit-stepper"
+                onClick={() =>
+                  onOverride(
+                    'rounds',
+                    Math.min(16, (overrides.rounds ?? settings.rounds) + 1),
+                  )
+                }
+              >
+                +
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {settings.mode === 'ladder' && (
           <div className="summary-row">
@@ -856,8 +858,17 @@ function LeagueSetupStep2({ settings, onLaunch, onBack, initialData, launchError
               onOverride={setOverride}
             />
 
-            {preview && (
+            {preview && settings.mode !== 'ladder' && (
               <Round1Preview rounds={preview.rounds} isDoubles={isDoubles} />
+            )}
+
+            {settings.mode === 'ladder' && canLaunch && (
+              <div className="summary-card summary-card-compact">
+                <div className="summary-card-title">How Ladder Works</div>
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--color-muted)', lineHeight: 1.5 }}>
+                  Matches are created when players issue and accept challenges. No schedule is pre-generated.
+                </p>
+              </div>
             )}
 
             {players.length > 0 && !canLaunch && (

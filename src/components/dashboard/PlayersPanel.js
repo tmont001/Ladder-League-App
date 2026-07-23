@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import Portal from '../shared/Portal';
 import { useLeague } from '../../context/LeagueContext';
 import { fetchPlayerCodes } from '../../lib/db';
+import { useAccessibleDialog } from '../../hooks/useAccessibleDialog';
 
 function CopyButton({ text, label = 'Copy', copiedLabel = '✓ Copied' }) {
   const [copied, setCopied] = useState(false);
@@ -58,6 +59,7 @@ function PlayerCodeRow({ player, leagueUrl }) {
 
 function PlayersPanel({ onClose }) {
   const { settings } = useLeague();
+  const dialogRef = useAccessibleDialog(true, onClose);
   const leagueUrl = window.location.href;
 
   const leagueId = settings?.id;
@@ -81,9 +83,9 @@ function PlayersPanel({ onClose }) {
   return (
     <Portal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="modal modal-lg" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="players-panel-title" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
-            <div className="modal-title">Player Codes</div>
+            <div className="modal-title" id="players-panel-title">Player Codes</div>
             <button className="modal-close" onClick={onClose}>
               ✕
             </button>

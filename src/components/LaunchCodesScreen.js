@@ -46,20 +46,23 @@ function PlayerCodeRow({ player, leagueName, leagueUrl }) {
 }
 
 // Props:
-//   leagueId        — real UUID from effectiveSettings.id (required for DB lookup)
-//   leagueName      — display name
-//   isDoubles       — unused for code display; retained for future use
-//   onEnterDashboard — callback when organizer is done
-function LaunchCodesScreen({ leagueId, leagueName, isDoubles, onEnterDashboard }) {
+//   leagueId           — real UUID from effectiveSettings.id (required for DB lookup)
+//   leagueName         — display name
+//   isDoubles          — unused for code display; retained for future use
+//   initialPlayerCodes — [{id,name,role,session_token}] returned by the atomic/duplicate RPC;
+//                        when provided the RPC fetch is skipped
+//   onEnterDashboard   — callback when organizer is done
+function LaunchCodesScreen({ leagueId, leagueName, isDoubles, initialPlayerCodes, onEnterDashboard }) {
   const leagueUrl = window.location.href;
   const isOffline = !leagueId || String(leagueId).startsWith('local-');
+  const hasInitial = Array.isArray(initialPlayerCodes);
 
-  const [playerCodes, setPlayerCodes] = useState([]);
-  const [loadingCodes, setLoadingCodes] = useState(!isOffline);
+  const [playerCodes, setPlayerCodes] = useState(hasInitial ? initialPlayerCodes : []);
+  const [loadingCodes, setLoadingCodes] = useState(!isOffline && !hasInitial);
   const [codesError, setCodesError] = useState(null);
 
   useEffect(() => {
-    if (isOffline) return;
+    if (isOffline || hasInitial) return;
     fetchPlayerCodes(leagueId)
       .then(setPlayerCodes)
       .catch((err) => {
@@ -67,7 +70,8 @@ function LaunchCodesScreen({ leagueId, leagueName, isDoubles, onEnterDashboard }
         setCodesError('Could not load player codes. Refresh the page or check your connection.');
       })
       .finally(() => setLoadingCodes(false));
-  }, [leagueId, isOffline]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leagueId]);
 
   const allCodes = playerCodes
     .map((p) => `${p.name}: ${p.session_token || '—'}`)

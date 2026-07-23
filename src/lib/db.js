@@ -102,6 +102,8 @@ function dbLeagueToSettings(row) {
       warningDays: row.inactivity_warning_days,
       dropDays: row.inactivity_drop_days,
     },
+    createdAt: row.created_at,
+    status: row.status || 'active',
   };
 }
 
@@ -444,6 +446,76 @@ function rpcErrorMessage(err) {
     return 'Please type the league name to confirm deletion.';
   if (msg === 'name_mismatch')
     return 'League name does not match. Please type the exact name.';
+  if (msg === 'empty_league_name')
+    return 'League name cannot be empty.';
+  if (msg === 'empty_player_name')
+    return 'One or more player names are empty.';
+  if (msg === 'no_players')
+    return 'A league requires at least one player.';
+  if (msg === 'invalid_sport')
+    return 'Invalid sport selection.';
+  if (msg === 'invalid_mode')
+    return 'Invalid league mode.';
+  if (msg === 'invalid_format')
+    return 'Invalid singles/doubles selection.';
+  if (msg === 'league_not_found')
+    return 'League not found.';
+  if (msg === 'league_not_active')
+    return 'This league is not active.';
+  if (msg === 'league_must_end_before_archive')
+    return 'End the league before archiving it.';
+  if (msg === 'league_not_archived')
+    return 'This league is not archived.';
+  if (msg === 'duplicate_name_empty')
+    return 'Please enter a name for the new season.';
+  if (msg === 'league_read_only')
+    return 'This league has ended. No further changes can be made.';
+  if (msg === 'duplicate_player_local_id')
+    return 'Duplicate player ID detected. Please refresh and try again.';
+  if (msg === 'empty_player_local_id')
+    return 'A player is missing an ID. Please refresh and try again.';
+  if (msg === 'duplicate_player_name')
+    return 'Two or more players share the same name. Each player must have a unique name.';
+  if (msg === 'no_teams')
+    return 'Doubles leagues require at least one team.';
+  if (msg === 'empty_team_local_id')
+    return 'A team is missing an ID. Please refresh and try again.';
+  if (msg === 'duplicate_team_local_id')
+    return 'Duplicate team ID detected. Please refresh and try again.';
+  if (msg === 'team_must_have_two_players')
+    return 'Each doubles team must have exactly two players.';
+  if (msg === 'team_players_not_distinct')
+    return 'A team cannot have the same player twice.';
+  if (msg === 'team_references_unknown_player')
+    return 'A team includes a player that is not in the player list. Please refresh and try again.';
+  if (msg === 'player_on_multiple_teams')
+    return 'A player cannot be on more than one team.';
+  if (msg === 'player_without_team')
+    return 'Every player in a doubles league must be on a team.';
+  if (msg === 'singles_must_have_no_teams')
+    return 'Singles leagues cannot have teams.';
+  if (msg === 'self_match_not_allowed')
+    return 'A match cannot have the same player or team on both sides.';
+  if (msg === 'invalid_round_number')
+    return 'One or more matches have an invalid round number.';
+  if (msg === 'invalid_match_type')
+    return 'One or more matches have an invalid type.';
+  if (msg === 'match_missing_p1')
+    return 'One or more matches are missing a first participant.';
+  if (msg === 'match_missing_p2')
+    return 'One or more matches are missing a second participant.';
+  if (msg === 'match_unknown_participant')
+    return 'A match references a player or team not in this league.';
+  if (msg === 'bye_must_have_no_p2')
+    return 'Bye matches must not have a second participant.';
+  if (msg === 'round_robin_requires_matches')
+    return 'Round-robin leagues require a match schedule.';
+  if (msg === 'ladder_mode_no_scheduled_matches')
+    return 'Ladder leagues do not use a pre-scheduled match list.';
+  if (msg === 'seeded_order_mismatch')
+    return 'The seeded order does not match the number of players. Please refresh and try again.';
+  if (msg === 'seeded_order_invalid')
+    return 'The seeded order contains an unrecognised player ID. Please refresh and try again.';
   return 'Something went wrong. Please try again.';
 }
 
@@ -531,6 +603,87 @@ export async function listMyLeagues() {
   const { data, error } = await supabase.rpc('list_my_leagues');
   if (error) throw error;
   return data || [];
+}
+
+export async function createLeagueAtomic(
+  settings,
+  players,
+  teams,
+  matches,
+  seededOrder,
+) {
+  const { data, error } = await supabase.rpc('create_league_atomic', {
+    p_name:               settings.leagueName,
+    p_sport:              settings.sport,
+    p_mode:               settings.mode || 'round_robin',
+    p_singles_or_doubles: settings.singlesOrDoubles,
+    p_format:             settings.format,
+    p_third_set_format:   settings.thirdSetFormat,
+    p_rounds:             settings.rounds,
+    p_challenge_spots:    settings.challengeSpots,
+    p_auto_advance:       settings.autoAdvance,
+    p_players:            players,
+    p_teams:              teams,
+    p_matches:            matches,
+    p_seeded_order:       seededOrder,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
+  // RPC returns jsonb: { league_id, player_codes: [{player_id,name,session_token}] }
+  // Normalize to the shape LaunchCodesScreen/PlayerCodeRow expect: {id,name,role,session_token}
+  const playerCodes = (data.player_codes || []).map((p) => ({
+    id:            p.player_id,
+    name:          p.name,
+    session_token: p.session_token,
+    role:          p.role || 'player',
+  }));
+  return { leagueId: data.league_id, playerCodes };
+}
+
+export async function endLeague(leagueId) {
+  const { error } = await supabase.rpc('end_league_for_organizer', {
+    p_league_id: leagueId,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
+}
+
+export async function archiveLeague(leagueId) {
+  const { error } = await supabase.rpc('archive_league_for_organizer', {
+    p_league_id: leagueId,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
+}
+
+export async function restoreLeague(leagueId) {
+  const { error } = await supabase.rpc('restore_league_for_organizer', {
+    p_league_id: leagueId,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
+}
+
+export async function duplicateLeague(
+  sourceLeagueId,
+  newName,
+  players,
+  teams,
+  matches,
+  seededOrder,
+) {
+  const { data, error } = await supabase.rpc('duplicate_league_for_organizer', {
+    p_source_league_id: sourceLeagueId,
+    p_new_name:         newName,
+    p_players:          players,
+    p_teams:            teams,
+    p_matches:          matches,
+    p_seeded_order:     seededOrder,
+  });
+  if (error) throw new Error(rpcErrorMessage(error));
+  const playerCodes = (data.player_codes || []).map((p) => ({
+    id:            p.player_id,
+    name:          p.name,
+    session_token: p.session_token,
+    role:          p.role || 'player',
+  }));
+  return { leagueId: data.league_id, playerCodes };
 }
 
 // ══════════════════════════════════════════════════════════════

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Portal from '../shared/Portal';
+import { useAccessibleDialog } from '../../hooks/useAccessibleDialog';
 
 const FORMAT_OPTS = [
   { value: 'best_of_1', label: 'Best of 1' },
@@ -83,17 +84,22 @@ function SettingsModal({ settings, onSave, onClose, saving = false, saveError = 
   const isTennis = s.sport === 'tennis';
   const isPickleball = s.sport === 'pickleball';
   const isMultiSet = s.format === 'best_of_3' || s.format === 'best_of_5';
+  const dialogRef = useAccessibleDialog(true, onClose, { disableEscape: saving });
 
   return (
     <Portal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay" onClick={!saving ? onClose : undefined}>
         <div
           className="modal modal-lg"
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-modal-title"
           onClick={(e) => e.stopPropagation()}
           style={{ maxHeight: '90vh', overflowY: 'auto' }}
         >
           <div className="modal-header">
-            <div className="modal-title">League Settings</div>
+            <div className="modal-title" id="settings-modal-title">League Settings</div>
             <button className="modal-close" onClick={onClose}>
               ✕
             </button>

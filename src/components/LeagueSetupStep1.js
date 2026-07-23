@@ -295,7 +295,7 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
         <div className="wizard-section">
           <div className="wizard-section-title">League Rules</div>
 
-          <div className="grid-2">
+          <div className={isLadder ? undefined : 'grid-2'}>
             <div className="field-group">
               <label>Match time limit</label>
               <select
@@ -309,20 +309,28 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
                 ))}
               </select>
             </div>
-            <div className="field-group">
-              <label>Number of rounds</label>
-              <div className="slider-row">
-                <input
-                  type="range"
-                  min={2}
-                  max={16}
-                  value={s.rounds}
-                  onChange={(e) => set('rounds', Number(e.target.value))}
-                />
-                <div className="slider-val">{s.rounds}</div>
+            {!isLadder && (
+              <div className="field-group">
+                <label>Number of rounds</label>
+                <div className="slider-row">
+                  <input
+                    type="range"
+                    min={2}
+                    max={16}
+                    value={s.rounds}
+                    onChange={(e) => set('rounds', Number(e.target.value))}
+                  />
+                  <div className="slider-val">{s.rounds}</div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
+
+          {isLadder && (
+            <p className="ladder-rule-hint">
+              Ladder matches are created when challenges are accepted.
+            </p>
+          )}
 
           {isLadder && (
             <div className="field-group">
@@ -340,23 +348,25 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
             </div>
           )}
 
-          <div className="toggle-row">
-            <div>
-              <div className="toggle-label">Auto-advance rounds</div>
-              <div className="toggle-sub">
-                Automatically generate the next round when all matches are
-                complete
+          {!isLadder && (
+            <div className="toggle-row">
+              <div>
+                <div className="toggle-label">Auto-advance rounds</div>
+                <div className="toggle-sub">
+                  Automatically generate the next round when all matches are
+                  complete
+                </div>
               </div>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={s.autoAdvance}
+                  onChange={(e) => set('autoAdvance', e.target.checked)}
+                />
+                <span className="toggle-track" />
+              </label>
             </div>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={s.autoAdvance}
-                onChange={(e) => set('autoAdvance', e.target.checked)}
-              />
-              <span className="toggle-track" />
-            </label>
-          </div>
+          )}
         </div>
 
       </div>
