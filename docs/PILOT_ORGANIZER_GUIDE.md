@@ -45,7 +45,7 @@ After signing in you will see **My Leagues** — a list of every league you have
 1. From **My Leagues**, click **New League**.
 2. **Step 1 — Configure:**
    - Enter a league name.
-   - Choose your sport (Tennis or Pickleball).
+   - Choose your sport (Tennis, Pickleball, or Padel).
    - Select **Singles** or **Doubles**.
    - Select **Round Robin** as the mode.
    - Set your match format (Best of 1, 3, or 5).

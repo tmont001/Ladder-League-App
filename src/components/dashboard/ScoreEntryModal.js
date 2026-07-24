@@ -122,7 +122,7 @@ function SetScoreRow({
   p1Name,
   p2Name,
 }) {
-  const isTennis = sport === 'tennis';
+  const isTennis = sport === 'tennis' || sport === 'padel';
   const isSuperTb = isDeciding && isTied && thirdSetFormat === 'super_tiebreak';
   const { p1, p2, tbP1, tbP2 } = setScore;
 
@@ -296,7 +296,7 @@ function ScoreEntryModal({ match, onClose }) {
   const tiebreakFormat = settings.tiebreakFormat || 'standard';
   const gamesPerSet = settings.gamesPerSet || 6;
   const pickleballPoints = settings.pickleballPoints || 11;
-  const isTennis = sport === 'tennis';
+  const isTennis = sport === 'tennis' || sport === 'padel';
   const maxSets = getSetCount(format);
   const setsNeeded = getSetsNeeded(maxSets);
 

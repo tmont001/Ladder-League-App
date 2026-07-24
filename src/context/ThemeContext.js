@@ -25,7 +25,7 @@ export function ThemeProvider({ children, sport }) {
 
     // Sport palette
     root.classList.toggle('sport-pickleball', sport === 'pickleball');
-    root.classList.toggle('sport-tennis', sport === 'tennis' || !sport);
+    root.classList.toggle('sport-tennis', sport === 'tennis' || sport === 'padel' || !sport);
   }, [isDark, sport]);
 
   const toggleTheme = () => setIsDark((prev) => !prev);

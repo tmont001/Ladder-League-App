@@ -259,6 +259,32 @@
 
 ---
 
+## 20. Padel Sport
+
+| # | Check | Result | Notes |
+|---|---|---|---|
+| 20.1 | Padel appears as a selectable sport in league creation | | |
+| 20.2 | Padel icon renders in the sport selector | | |
+| 20.3 | **Singles Round Robin** — Padel selected; round count and set/game format controls visible | | |
+| 20.4 | **Singles Round Robin** — Round 1 Preview shows after players are added | | |
+| 20.5 | **Singles Round Robin** — Launch succeeds; schedule is generated; player codes issued | | |
+| 20.6 | **Singles Round Robin** — Score entry uses set/game format (not Pickleball point format) | | |
+| 20.7 | **Doubles Round Robin** — Padel Doubles launch succeeds; teams are formed correctly | | |
+| 20.8 | **Doubles Round Robin** — Doubles schedule is generated; codes issued | | |
+| 20.9 | **Singles Ladder** — Padel selected; Rounds slider hidden; challenge window visible | | |
+| 20.10 | **Singles Ladder** — Launch succeeds; no pre-scheduled matches; challenges available | | |
+| 20.11 | **Singles Ladder** — Issuing a challenge works; accepted challenge creates a match | | |
+| 20.12 | Padel league icon appears correctly on My Leagues cards | | |
+| 20.13 | Padel league icon appears correctly in the dashboard header | | |
+| 20.14 | **Duplication** — Duplicate a Padel league; new league preserves sport = Padel | | |
+| 20.15 | **Duplication** — Duplicated Padel Round Robin generates a fresh schedule | | |
+| 20.16 | **Duplication** — Duplicated Padel Ladder has no pre-scheduled matches | | |
+| 20.17 | Switching Tennis → Padel → Pickleball does not lose player list or mode selection | | |
+| 20.18 | Existing Tennis leagues still load and score correctly | | |
+| 20.19 | Existing Pickleball leagues still load and score correctly | | |
+
+---
+
 ## Summary
 
 | Category | Pass | Fail | Notes |
@@ -282,4 +308,5 @@
 | Mobile | | | |
 | Light/Dark Mode | | | |
 | Console/Network | | | |
+| **Padel Sport** | | | |
 | **Total** | | | |

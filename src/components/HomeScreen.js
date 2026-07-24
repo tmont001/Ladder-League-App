@@ -1,7 +1,7 @@
 // src/components/HomeScreen.js
 import React from 'react';
 import ThemeToggle from './shared/ThemeToggle';
-import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
+import { TennisRacquetIcon, PickleballPaddleIcon, PadelRacquetIcon } from './SportIcons';
 
 function HomeScreen({ onCreateLeague, onJoinLeague }) {
   return (
@@ -22,11 +22,12 @@ function HomeScreen({ onCreateLeague, onJoinLeague }) {
         <div className="home-sport-icons">
           <TennisRacquetIcon size={32} color="var(--accent)" />
           <PickleballPaddleIcon size={32} color="var(--accent)" />
+          <PadelRacquetIcon size={32} color="var(--accent)" />
         </div>
 
         <div className="home-tagline">
-          Run a ladder or round-robin league for tennis or pickleball. Track
-          matches, standings, and challenges — all in one place.
+          Run a ladder or round-robin league for tennis, pickleball, or padel.
+          Track matches, standings, and challenges — all in one place.
         </div>
 
         <div className="home-options">

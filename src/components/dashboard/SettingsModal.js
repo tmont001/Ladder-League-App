@@ -81,7 +81,7 @@ function SelectRow({ label, sub, value, onChange, options }) {
 function SettingsModal({ settings, onSave, onClose, saving = false, saveError = null }) {
   const [s, setS] = useState({ ...settings });
   const set = (key, val) => setS((p) => ({ ...p, [key]: val }));
-  const isTennis = s.sport === 'tennis';
+  const isTennis = s.sport === 'tennis' || s.sport === 'padel';
   const isPickleball = s.sport === 'pickleball';
   const isMultiSet = s.format === 'best_of_3' || s.format === 'best_of_5';
   const dialogRef = useAccessibleDialog(true, onClose, { disableEscape: saving });

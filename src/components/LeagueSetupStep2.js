@@ -1,7 +1,7 @@
 import Portal from './shared/Portal';
 import React, { useState, useMemo, useEffect } from 'react';
 import ThemeToggle from './shared/ThemeToggle';
-import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
+import { TennisRacquetIcon, PickleballPaddleIcon, PadelRacquetIcon } from './SportIcons';
 import { generateLeague } from '../utils/matchGenerator';
 
 // ─── Constants ────────────────────────────────────────────
@@ -32,11 +32,9 @@ function generateId() {
 }
 
 function getSportIcon(sport, size = 16) {
-  return sport === 'tennis' ? (
-    <TennisRacquetIcon size={size} color="currentColor" />
-  ) : (
-    <PickleballPaddleIcon size={size} color="currentColor" />
-  );
+  if (sport === 'tennis') return <TennisRacquetIcon size={size} color="currentColor" />;
+  if (sport === 'padel')  return <PadelRacquetIcon  size={size} color="currentColor" />;
+  return <PickleballPaddleIcon size={size} color="currentColor" />;
 }
 
 // ─── Bulk paste parser ────────────────────────────────────

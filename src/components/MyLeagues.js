@@ -11,7 +11,7 @@ import {
   ORG_SESSION_EXPIRED_MSG,
 } from '../lib/db';
 import { getLastOrgLeagueId, clearLastOrgLeagueId, clearActiveLeague } from '../lib/session';
-import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
+import { TennisRacquetIcon, PickleballPaddleIcon, PadelRacquetIcon } from './SportIcons';
 import { generateLeague } from '../utils/matchGenerator';
 import { useToast } from './shared/ToastProvider';
 import { useAccessibleDialog } from '../hooks/useAccessibleDialog';
@@ -131,7 +131,9 @@ function ActionMenu({ league, onEnd, onArchive, onRestore, onDuplicate, onDelete
 }
 
 function LeagueCard({ league, onOpen, onEnd, onArchive, onRestore, onDuplicate, onDelete, isLastOpened }) {
-  const SportIcon = league.sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
+  const SportIcon = league.sport === 'tennis' ? TennisRacquetIcon
+    : league.sport === 'padel' ? PadelRacquetIcon
+    : PickleballPaddleIcon;
 
   return (
     <div className="my-leagues-card">

@@ -20,6 +20,10 @@ Organizers sign in via a one-time email link. No password is required. Sessions 
 
 Each player receives a unique access code generated at league launch. Players enter the code to access their league view — no account creation or password required. Codes are scoped per league; a player in multiple leagues has a separate code for each.
 
+### Supported Sports
+
+Tennis, Pickleball, and Padel are supported. All three sports share the same league structures, scoring flows, lifecycle, and challenge mechanics. Tennis and Padel use set/game scoring; Pickleball uses a point-game format.
+
 ### Singles and Doubles
 
 Both Singles and Doubles formats are supported for Round Robin leagues. Match format options include Best of 1, Best of 3, and Best of 5. Doubles is Singles-based for Ladder challenges in this release.

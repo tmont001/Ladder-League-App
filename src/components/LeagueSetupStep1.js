@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TennisRacquetIcon, PickleballPaddleIcon } from './SportIcons';
+import { TennisRacquetIcon, PickleballPaddleIcon, PadelRacquetIcon } from './SportIcons';
 import ThemeToggle from './shared/ThemeToggle';
 
 const SPORTS = [
@@ -23,6 +23,17 @@ const SPORTS = [
       { value: 'best_of_1', label: 'Best of 1 game' },
       { value: 'best_of_3', label: 'Best of 3 games' },
       { value: 'best_of_5', label: 'Best of 5 games' },
+    ],
+  },
+  {
+    id: 'padel',
+    label: 'Padel',
+    Icon: PadelRacquetIcon,
+    formatLabel: 'Sets to win match',
+    formatOptions: [
+      { value: 'best_of_1', label: 'Best of 1 set' },
+      { value: 'best_of_3', label: 'Best of 3 sets' },
+      { value: 'best_of_5', label: 'Best of 5 sets' },
     ],
   },
 ];
@@ -75,7 +86,7 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
   );
 
   const set = (key, val) => setS((prev) => ({ ...prev, [key]: val }));
-  const isTennis = s.sport === 'tennis';
+  const isSetBased = s.sport === 'tennis' || s.sport === 'padel';
   const isLadder = s.mode === 'ladder';
   const isPickleball = s.sport === 'pickleball';
   const isMultiSet = s.format === 'best_of_3' || s.format === 'best_of_5';
@@ -203,7 +214,7 @@ function LeagueSetupStep1({ onNext, initialSettings, onBack, onSportChange }) {
             </div>
           </div>
 
-          {isTennis && (
+          {isSetBased && (
             <>
               <div className="grid-2">
                 <div className="field-group">

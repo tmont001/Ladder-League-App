@@ -1,5 +1,58 @@
 import React from 'react';
 
+export function PadelRacquetIcon({ size = 28, color = 'currentColor' }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-label="Padel Racquet"
+    >
+      {/* Solid round face */}
+      <ellipse
+        cx="13"
+        cy="10"
+        rx="8.5"
+        ry="9"
+        stroke={color}
+        strokeWidth="1.8"
+        fill="none"
+      />
+
+      {/* Hole pattern — triangular arrangement */}
+      <circle cx="13" cy="7" r="1.1" fill={color} opacity="0.7" />
+      <circle cx="10" cy="12" r="1.1" fill={color} opacity="0.7" />
+      <circle cx="16" cy="12" r="1.1" fill={color} opacity="0.7" />
+
+      {/* Short neck */}
+      <path
+        d="M10.5 18.5 L11.5 21 L14.5 21 L15.5 18.5"
+        stroke={color}
+        strokeWidth="1.8"
+        fill="none"
+        strokeLinejoin="round"
+      />
+
+      {/* Handle */}
+      <rect x="10.5" y="21" width="4" height="6" rx="2" fill={color} />
+
+      {/* Grip wrap */}
+      <line
+        x1="10.3"
+        y1="23"
+        x2="14.7"
+        y2="23"
+        stroke="var(--bg, #fff)"
+        strokeWidth="0.6"
+        strokeLinecap="round"
+        opacity="0.45"
+      />
+    </svg>
+  );
+}
+
 export function TennisRacquetIcon({ size = 28, color = 'currentColor' }) {
   return (
     <svg

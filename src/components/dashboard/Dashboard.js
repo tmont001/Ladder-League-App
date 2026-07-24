@@ -4,7 +4,7 @@ import { usePlayerIdentity } from '../../context/PlayerIdentityContext';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../shared/ThemeToggle';
 import PlayerPicker from '../PlayerPicker';
-import { TennisRacquetIcon, PickleballPaddleIcon } from '../SportIcons';
+import { TennisRacquetIcon, PickleballPaddleIcon, PadelRacquetIcon } from '../SportIcons';
 import StandingsTab from './StandingsTab';
 import ScheduleTab from './ScheduleTab';
 import StatsTab from './StatsTab';
@@ -417,7 +417,9 @@ function DashboardContent({ onSettingsSave, onBackToMyLeagues, onSwitchLeague })
 
   const sport            = settings?.sport ?? '';
   const singlesOrDoubles = settings?.singlesOrDoubles ?? '';
-  const SportIcon        = sport === 'tennis' ? TennisRacquetIcon : PickleballPaddleIcon;
+  const SportIcon        = sport === 'tennis' ? TennisRacquetIcon
+    : sport === 'padel' ? PadelRacquetIcon
+    : PickleballPaddleIcon;
 
   return (
     <div className="dashboard">
