@@ -36,6 +36,17 @@ supabase/
   schema.sql     # database schema
 ```
 
+## Pilot Documentation
+
+| Document                                                         | Audience                                                                       |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [Organizer Guide](docs/PILOT_ORGANIZER_GUIDE.md)                 | League organizers — creating leagues, managing players, score entry, lifecycle |
+| [Player Guide](docs/PILOT_PLAYER_GUIDE.md)                       | Players — joining with a code, submitting scores, issuing challenges           |
+| [QA Checklist](docs/PILOT_QA_CHECKLIST.md)                       | Testers — structured pass/fail checklist covering all pilot flows              |
+| [Support Runbook](docs/PILOT_SUPPORT_RUNBOOK.md)                 | App operator — troubleshooting guide with escalation steps                     |
+| [Feedback Log](docs/pilot-feedback.md)                           | All pilot participants — issue template and prioritized summary table          |
+| [Release Notes v0.1.0-pilot](docs/RELEASE_NOTES_v0.1.0-pilot.md) | All stakeholders — feature summary and known limitations                       |
+
 ## Status
 
-Actively developed — local/dev setup, not yet deployed to production.
+Ready for first external pilot
